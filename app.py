@@ -21,7 +21,6 @@ st.subheader("1. Mercado da Cidade")
 def load_data():
     try:
         file_path = 'Ranking PCA.xlsx'
-        # Carrega sem cabeçalho para caçar a linha correta
         df_raw = pd.read_excel(file_path, header=None)
         
         header_row = 0
@@ -30,12 +29,8 @@ def load_data():
                 header_row = i
                 break
         
-        # Lê a planilha a partir da linha encontrada
         df = pd.read_excel(file_path, skiprows=header_row)
-        
-        # Limpa nomes das colunas (tira espaços extras)
         df.columns = [str(c).strip() for c in df.columns]
-        
         return df
     except Exception as e:
         st.error(f"Erro ao carregar Excel: {e}")
@@ -56,41 +51,38 @@ if df is not None:
         with col1:
             # --- POPULAÇÃO ---
             pop_val = dados.get('População', 0)
-            # Trata se o Excel ler como texto "196.364"
             if isinstance(pop_val, str):
                 pop_val = int(pop_val.replace('.', '').replace(',', ''))
-            
             st.metric(label="👥 População", value=f"{int(pop_val):,}".replace(',', '.'))
             
             # --- SHARE ---
             share_val = dados.get('%Share', 0)
             if isinstance(share_val, (float, int)):
-                # Se for 0.07 vira 7,00. Se for 7 vira 7,00.
                 val = share_val * 100 if share_val < 1 else share_val
                 share_txt = f"{val:.2f}".replace('.', ',')
             else:
                 share_txt = str(share_val).replace('%', '').strip().replace('.', ',')
-            
             st.metric(label="📊 Share da Cidade", value=f"{share_txt}%")
 
         with col2:
-            # --- LOJAS ATUAIS (Usando N° FSJ) ---
-            # Note o "°" (bolinha do teclado) conforme você solicitou
+            # --- LOJAS ATUAIS ---
             lojas = dados.get('N° FSJ', 0)
             st.metric(label="🏠 Lojas Atuais (FSJ)", value=int(lojas) if pd.notnull(lojas) else 0)
             
-            # --- DEMANDA (Adicionado conforme sua lista) ---
+            # --- DEMANDA ---
             demanda = dados.get('Demanda', 'N/A')
-            # Se for número, formata com ponto, se for texto, exibe direto
             if isinstance(demanda, (int, float)):
                 demanda_display = f"{int(demanda):,}".replace(',', '.')
             else:
                 demanda_display = demanda
-                
             st.metric(label="📈 Demanda", value=demanda_display)
 
         st.markdown("---")
         
-        # Rodapé com Região
-        regiao = dados.get('REGIÃO GEOGRÁFICA IMEDIATA', 'Não informada')
-        st.caption(f"Município: **{cidade_selecionada}** | Região: **{regiao}**")
+        # --- RODAPÉ AJUSTADO ---
+        # Buscamos os nomes longos na planilha
+        reg_imediata = dados.get('REGIÃO GEOGRÁFICA IMEDIATA', 'N/A')
+        reg_intermediaria = dados.get('REGIÃO GEOGRÁFICA INTERMEDIÁRIA', 'N/A')
+        
+        # Exibimos com os nomes simplificados conforme seu pedido
+        st.caption(f"**Região Imediata:** {reg_imediata} | **Região Intermediária:** {reg_intermediaria}")
