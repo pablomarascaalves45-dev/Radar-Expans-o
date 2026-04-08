@@ -45,7 +45,6 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia,
     pdf.cell(200, 8, txt=f"Municipio: {municipio}", ln=True)
     pdf.cell(200, 8, txt=f"Populacao: {formatar_br(dados_cidade.get('População', 0), 0)}", ln=True)
     
-    # Adicionando Regiões ao PDF
     reg_imediata = str(dados_cidade.get('REGIÃO GEOGRÁFICA IMEDIATA', 'N/A')).encode('latin-1', 'ignore').decode('latin-1')
     reg_interm = str(dados_cidade.get('REGIÃO GEOGRÁFICA INTERMEDIÁRIA', 'N/A')).encode('latin-1', 'ignore').decode('latin-1')
     pdf.cell(200, 8, txt=f"Regiao Imediata: {reg_imediata}", ln=True)
@@ -143,7 +142,6 @@ if df is not None:
             st.metric("💰 Renda Média", formatar_br(dados.get('Renda Média Domiciliar (SM)', 0), 2))
             st.metric("🏗️ Lojas Cabem", formatar_br(dados.get('Lojas Cabem', 0), 0))
 
-        # AJUSTE 1: Exibição das Regiões abaixo de Share e Demanda
         reg_imediata = dados.get('REGIÃO GEOGRÁFICA IMEDIATA', 'N/A')
         reg_intermediaria = dados.get('REGIÃO GEOGRÁFICA INTERMEDIÁRIA', 'N/A')
         st.markdown(f"""
@@ -158,13 +156,13 @@ if df is not None:
     st.subheader("2. Mídia e Localização")
     endereco = st.text_input("📍 Link ou Endereço do Ponto:")
     
-    # AJUSTE 2: Captura automática de GPS logo abaixo do endereço
+    # AJUSTE: Removido os textos "Lat:" e "Lon:"
     loc = get_geolocation()
     if loc:
         lat = loc['coords']['latitude']
         lon = loc['coords']['longitude']
         lat_lon_str = f"{lat}, {lon}"
-        st.success(f"📍 GPS Ativo: Lat: {lat}, Lon: {lon}")
+        st.success(f"📍 GPS Ativo: {lat_lon_str}")
     else:
         lat_lon_str = "Não capturado"
         st.warning("Aguardando permissão de localização/GPS...")
@@ -188,7 +186,6 @@ if df is not None:
     with col_d:
         c_popu = st.select_slider("Concentração populacional", options=["Baixo", "Médio", "Alto"])
 
-    # --- CARACTERÍSTICAS DO PONTO ---
     st.write("")
     st.markdown("<h3 style='text-align: center;'>Características do Ponto</h3>", unsafe_allow_html=True)
     
@@ -208,7 +205,6 @@ if df is not None:
     with col_cp6:
         char_solar = st.select_slider("Posição Solar", options=["Boa", "Ruim"])
 
-    # --- SEÇÃO: CONCORRÊNCIA ---
     st.write("")
     st.markdown("<h3 style='text-align: center;'>Concorrência</h3>", unsafe_allow_html=True)
     col_c1, col_c2, col_c3 = st.columns(3)
@@ -219,7 +215,6 @@ if df is not None:
     with col_c3:
         conc_canib = st.select_slider("Canibalização", options=["Baixo", "Médio", "Alto"])
 
-    # --- SEÇÃO: POLOS GERADORES DE TRÁFEGO ---
     st.write("")
     st.markdown("<h3 style='text-align: center;'>Polos geradores de tráfego</h3>", unsafe_allow_html=True)
     col_p1, col_p2, col_p3 = st.columns(3)
@@ -240,7 +235,6 @@ if df is not None:
     st.write("") 
     observacoes = st.text_area("📝 Observações da Vistoria:", height=100)
 
-    # Coleta de dados para exportação
     avaliacoes = {"Fluxo Pessoas": f_pess, "Fluxo Veículos": f_veic, "Renda": c_rend, "Concentração": c_popu}
     dados_concorrencia = {"Redes": conc_redes, "Independentes": conc_indep, "Canibalizacao": conc_canib}
     dados_polos = {"Supermercado": polo_super, "Padaria": polo_pada, "Hospital/UPA": polo_hosp, "Bancos": polo_banc, "PetShop": polo_pet, "Lojas Fem": polo_fem}
