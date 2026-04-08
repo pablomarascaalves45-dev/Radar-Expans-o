@@ -24,11 +24,11 @@ st.subheader("1. Mercado da Cidade")
 def load_data():
     try:
         # Tenta carregar o CSV. Se o erro persistir, verifique se o separador é ',' ou ';'
-        df = pd.read_csv('planilha.csv', sep=',') 
+        df = pd.read_csv('Ranking PCA Cidades.xlsx', sep=',') 
         df.columns = df.columns.str.strip() # Remove espaços nos nomes das colunas
         return df
     except FileNotFoundError:
-        st.error("Arquivo 'planilha.csv' não encontrado no diretório.")
+        st.error("Arquivo 'Ranking PCA Cidades.xlsx' não encontrado no diretório.")
         return None
 
 df = load_data()
