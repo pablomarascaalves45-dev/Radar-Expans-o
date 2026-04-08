@@ -1,4 +1,4 @@
-  import streamlit as st
+import streamlit as st
 import pandas as pd
 from fpdf import FPDF
 from streamlit_js_eval import get_geolocation
@@ -33,6 +33,7 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, foto_arquivo):
     pdf.add_page()
     pdf.set_font("Arial", "B", 16)
     
+    # Título Principal (Sem acentos para evitar erro de encode)
     pdf.cell(200, 10, txt="Relatorio de Expansao - Analise de Ponto", ln=True, align='C')
     pdf.ln(10)
     
@@ -40,23 +41,27 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, foto_arquivo):
     pdf.set_font("Arial", "B", 12)
     pdf.cell(200, 10, txt="1. Mercado da Cidade", ln=True)
     pdf.set_font("Arial", "", 10)
-    pdf.cell(200, 8, txt=f"Municipio: {dados_cidade['Município']}", ln=True)
+    
+    # Limpeza básica de strings para o PDF
+    municipio = str(dados_cidade['Município']).encode('latin-1', 'ignore').decode('latin-1')
+    pdf.cell(200, 8, txt=f"Municipio: {municipio}", ln=True)
     pdf.cell(200, 8, txt=f"Populacao: {formatar_br(dados_cidade.get('População', 0), 0)}", ln=True)
     pdf.cell(200, 8, txt=f"Share: {formatar_br(dados_cidade.get('%Share', 0), 2)}%", ln=True)
     pdf.cell(200, 8, txt=f"Demanda: {formatar_br(dados_cidade.get('Demanda', 0), 2)}", ln=True)
     
-    reg_imediata = dados_cidade.get('REGIÃO GEOGRÁFICA IMEDIATA', 'N/A')
-    reg_inter = dados_cidade.get('REGIÃO GEOGRÁFICA INTERMEDIÁRIA', 'N/A')
+    reg_imediata = str(dados_cidade.get('REGIÃO GEOGRÁFICA IMEDIATA', 'N/A')).encode('latin-1', 'ignore').decode('latin-1')
     pdf.cell(200, 8, txt=f"Regiao Imediata: {reg_imediata}", ln=True)
-    pdf.cell(200, 8, txt=f"Regiao Intermediaria: {reg_inter}", ln=True)
     pdf.ln(5)
     
     # 2. Dados do Ponto
     pdf.set_font("Arial", "B", 12)
     pdf.cell(200, 10, txt="2. Dados do Ponto", ln=True)
     pdf.set_font("Arial", "", 10)
-    pdf.cell(200, 8, txt=f"Endereco/Link: {endereco}", ln=True)
-    pdf.cell(200, 8, txt=f"Coordenadas GPS: {lat_lon}", ln=True)
+    
+    # Endereço limpo
+    txt_end = str(endereco).encode('latin-1', 'ignore').decode('latin-1')
+    pdf.cell(200, 8, txt=f"Endereco: {txt_end}", ln=True)
+    pdf.cell(200, 8, txt=f"GPS: {lat_lon}", ln=True)
     
     if foto_arquivo:
         try:
@@ -67,30 +72,39 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, foto_arquivo):
             img_path = "temp_foto.jpg"
             img.save(img_path)
             pdf.ln(5)
+            # Tenta manter a proporção na largura de 100mm
             pdf.image(img_path, w=100)
             pdf.ln(5)
             if os.path.exists(img_path): os.remove(img_path)
         except Exception as e:
-            pdf.cell(200, 8, txt=f"Erro ao carregar imagem: {e}", ln=True)
+            pdf.cell(200, 8, txt="Nao foi possivel processar a imagem.", ln=True)
 
     # 3. Observações da Vistoria
     pdf.ln(5)
     pdf.set_font("Arial", "B", 12)
     pdf.cell(200, 10, txt="3. Observacoes da Vistoria", ln=True)
     pdf.set_font("Arial", "", 10)
-    pdf.multi_cell(0, 8, txt=obs)
+    
+    # Observações limpas
+    txt_obs = str(obs).encode('latin-1', 'ignore').decode('latin-1')
+    pdf.multi_cell(0, 8, txt=txt_obs)
     
     pdf.ln(10)
     data_hoje = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
     pdf.cell(200, 10, txt=f"Gerado em: {data_hoje}", ln=True, align='R')
     
-    return pdf.output(dest='S').encode('latin-1')
+    # O segredo do erro está aqui: latin-1 com replace/ignore
+    return pdf.output(dest='S').encode('latin-1', errors='replace')
 
 # --- CARREGAMENTO DE DADOS ---
 @st.cache_data
 def load_data():
     try:
         file_path = 'Ranking PCA.xlsx'
+        if not os.path.exists(file_path):
+            st.error(f"Arquivo '{file_path}' não encontrado no diretório.")
+            return None
+            
         df_raw = pd.read_excel(file_path, header=None)
         header_row = 0
         for i, row in df_raw.iterrows():
@@ -100,7 +114,8 @@ def load_data():
         df = pd.read_excel(file_path, skiprows=header_row)
         df.columns = [str(c).strip() for c in df.columns]
         return df
-    except:
+    except Exception as e:
+        st.error(f"Erro ao ler Excel: {e}")
         return None
 
 df = load_data()
@@ -129,26 +144,17 @@ if df is not None:
         st.metric("💰 Renda Média", formatar_br(dados.get('Renda Média Domiciliar (SM)', 0), 2))
         st.metric("🏗️ Lojas Cabem", formatar_br(dados.get('Lojas Cabem', 0), 0))
 
-    reg_imediata = dados.get('REGIÃO GEOGRÁFICA IMEDIATA', 'Não encontrada')
-    reg_inter = dados.get('REGIÃO GEOGRÁFICA INTERMEDIÁRIA', 'Não encontrada')
-    
-    st.markdown(f"""
-        <div style="font-size: 0.85rem; color: #9da5b1; margin-top: -10px; padding-bottom: 20px;">
-            <strong>REGIÃO IMEDIATA:</strong> {reg_imediata} | 
-            <strong>REGIÃO INTERMEDIÁRIA:</strong> {reg_inter}
-        </div>
-    """, unsafe_allow_html=True)
-
     st.markdown("---")
     
-    # SEÇÃO 2 - Coleta de Mídia e Localização
+    # SEÇÃO 2 - Localização
     st.subheader("2. Mídia e Localização")
     endereco = st.text_input("📍 Link ou Endereço do Ponto:")
     
-    foto = st.file_uploader("📸 Foto do Imóvel (Câmera ou Galeria):", type=['jpg', 'jpeg', 'png'])
+    foto = st.file_uploader("📸 Foto do Imóvel:", type=['jpg', 'jpeg', 'png'])
     if foto:
-        st.image(foto, caption="Prévia da Foto Selecionada", use_container_width=True)
+        st.image(foto, caption="Prévia", use_container_width=True)
     
+    # Coordenadas
     loc = get_geolocation()
     lat_lon_str = "Não capturado"
     if loc:
@@ -157,16 +163,19 @@ if df is not None:
     
     st.markdown("---")
 
-    # SEÇÃO 3 - AJUSTADO: Título acima das observações
+    # SEÇÃO 3
     st.subheader("3. Dados do Ponto")
-    observacoes = st.text_area("📝 Observações da Vistoria:", height=150, placeholder="Descreva os detalhes do ponto aqui...")
+    observacoes = st.text_area("📝 Observações da Vistoria:", height=150)
 
     st.markdown("---")
     if st.button("🚀 Preparar PDF"):
-        pdf_bytes = exportar_pdf(dados, endereco, lat_lon_str, observacoes, foto)
-        st.download_button(
-            label="⬇️ Baixar Relatório PDF",
-            data=pdf_bytes,
-            file_name=f"Relatorio_{cidade_selecionada}.pdf",
-            mime="application/pdf"
-        )
+        try:
+            pdf_bytes = exportar_pdf(dados, endereco, lat_lon_str, observacoes, foto)
+            st.download_button(
+                label="⬇️ Baixar Relatório PDF",
+                data=pdf_bytes,
+                file_name=f"Relatorio_{cidade_selecionada}.pdf",
+                mime="application/pdf"
+            )
+        except Exception as e:
+            st.error(f"Erro ao gerar PDF: {e}")
