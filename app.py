@@ -42,7 +42,8 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia,
     pdf.cell(200, 10, txt="1. Mercado da Cidade", ln=True)
     pdf.set_font("Arial", "", 10)
     municipio = str(dados_cidade.get('Município', 'N/A')).encode('latin-1', 'ignore').decode('latin-1')
-    pdf.cell(200, 8, txt=f"Municipio: {municipio}", ln=True)
+    uf = str(dados_cidade.get('UF', 'N/A'))
+    pdf.cell(200, 8, txt=f"Municipio: {municipio} - {uf}", ln=True)
     pdf.cell(200, 8, txt=f"Populacao: {formatar_br(dados_cidade.get('População', 0), 0)}", ln=True)
     
     reg_imediata = str(dados_cidade.get('REGIÃO GEOGRÁFICA IMEDIATA', 'N/A')).encode('latin-1', 'ignore').decode('latin-1')
@@ -128,8 +129,16 @@ if df is not None:
     st.subheader("1. Mercado da Cidade")
     if 'Município' in df.columns:
         cidades = sorted(df['Município'].dropna().unique())
-        cidade_selecionada = st.selectbox("Selecione o município:", options=cidades)
-        dados = df[df['Município'] == cidade_selecionada].iloc[0]
+        
+        # AJUSTE: Duas colunas na mesma linha para Município e Estado
+        col_cidade, col_uf = st.columns([4, 1])
+        
+        with col_cidade:
+            cidade_selecionada = st.selectbox("Selecione o município:", options=cidades)
+            dados = df[df['Município'] == cidade_selecionada].iloc[0]
+            
+        with col_uf:
+            st.text_input("Estado:", value=dados.get('UF', ''), disabled=True)
         
         col1, col2, col3 = st.columns(3)
         with col1:
@@ -156,7 +165,6 @@ if df is not None:
     st.subheader("2. Mídia e Localização")
     endereco = st.text_input("📍 Link ou Endereço do Ponto:")
     
-    # AJUSTE: Removido os textos "Lat:" e "Lon:"
     loc = get_geolocation()
     if loc:
         lat = loc['coords']['latitude']
