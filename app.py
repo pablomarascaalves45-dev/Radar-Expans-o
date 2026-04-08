@@ -16,41 +16,47 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
+# --- FUNÇÃO AUXILIAR DE FORMATAÇÃO ---
+def formatar_br(valor, casas=2):
+    """Formata números para o padrão brasileiro (1.234,56)"""
+    try:
+        if pd.isna(valor): return "0"
+        return f"{valor:,.{casas}f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    except:
+        return str(valor)
+
 # --- FUNÇÃO PARA GERAR PDF ---
 def exportar_pdf(dados_cidade, endereco, lat_lon, obs):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", "B", 16)
     
-    # Título
-    pdf.cell(200, 10, txt="Relatório de Expansão - Análise de Ponto", ln=True, align='C')
+    pdf.cell(200, 10, txt="Relatorio de Expansao - Analise de Ponto", ln=True, align='C')
     pdf.ln(10)
     
-    # Dados da Cidade
     pdf.set_font("Arial", "B", 12)
     pdf.cell(200, 10, txt="1. Mercado da Cidade", ln=True)
     pdf.set_font("Arial", "", 10)
-    pdf.cell(200, 8, txt=f"Município: {dados_cidade['Município']}", ln=True)
-    pdf.cell(200, 8, txt=f"População: {dados_cidade['População']}", ln=True)
-    pdf.cell(200, 8, txt=f"Share: {dados_cidade.get('%Share', 'N/A')}", ln=True)
-    pdf.cell(200, 8, txt=f"Demanda: {dados_cidade.get('Demanda', 'N/A')}", ln=True)
+    
+    # Usando a formatação no PDF
+    pdf.cell(200, 8, txt=f"Municipio: {dados_cidade['Município']}", ln=True)
+    pdf.cell(200, 8, txt=f"Populacao: {formatar_br(dados_cidade.get('População', 0), 0)}", ln=True)
+    pdf.cell(200, 8, txt=f"Share: {formatar_br(dados_cidade.get('%Share', 0), 2)}%", ln=True)
+    pdf.cell(200, 8, txt=f"Demanda: {formatar_br(dados_cidade.get('Demanda', 0), 2)}", ln=True)
     pdf.ln(5)
     
-    # Dados do Ponto
     pdf.set_font("Arial", "B", 12)
-    pdf.cell(200, 10, txt="2. Análise do Ponto", ln=True)
+    pdf.cell(200, 10, txt="2. Analise do Ponto", ln=True)
     pdf.set_font("Arial", "", 10)
-    pdf.cell(200, 8, txt=f"Endereço/Link: {endereco}", ln=True)
+    pdf.cell(200, 8, txt=f"Endereco/Link: {endereco}", ln=True)
     pdf.cell(200, 8, txt=f"Coordenadas GPS: {lat_lon}", ln=True)
     pdf.ln(5)
     
-    # Observações
     pdf.set_font("Arial", "B", 12)
-    pdf.cell(200, 10, txt="3. Observações", ln=True)
+    pdf.cell(200, 10, txt="3. Observacoes", ln=True)
     pdf.set_font("Arial", "", 10)
     pdf.multi_cell(0, 8, txt=obs)
     
-    # Rodapé
     pdf.ln(10)
     data_hoje = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
     pdf.cell(200, 10, txt=f"Gerado em: {data_hoje}", ln=True, align='R')
@@ -88,16 +94,24 @@ if df is not None:
     
     dados = df[df['Município'] == cidade_selecionada].iloc[0]
     
+    # Tratamento e Formatação para a tela
+    pop = formatar_br(dados.get('População', 0), 0)
+    share = formatar_br(dados.get('%Share', 0), 2)
+    lojas = formatar_br(dados.get('N° FSJ', 0), 0)
+    demanda = formatar_br(dados.get('Demanda', 0), 2)
+    renda = formatar_br(dados.get('Renda Média Domiciliar (SM)', 0), 2)
+    cabem = formatar_br(dados.get('Lojas Cabem', 0), 0)
+    
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("👥 População", str(dados.get('População', 0)))
-        st.metric("📊 Share", f"{dados.get('%Share', 0)}%")
+        st.metric("👥 População", pop)
+        st.metric("📊 Share", f"{share}%")
     with col2:
-        st.metric("🏠 Lojas Atuais", str(dados.get('N° FSJ', 0)))
-        st.metric("📈 Demanda", str(dados.get('Demanda', 0)))
+        st.metric("🏠 Lojas Atuais", lojas)
+        st.metric("📈 Demanda", demanda)
     with col3:
-        st.metric("💰 Renda Média", str(dados.get('Renda Média Domiciliar (SM)', 0)))
-        st.metric("🏗️ Lojas Cabem", str(dados.get('Lojas Cabem', 0)))
+        st.metric("💰 Renda Média", renda)
+        st.metric("🏗️ Lojas Cabem", cabem)
 
     st.markdown("---")
     st.subheader("2. Análise do Ponto")
@@ -112,9 +126,9 @@ if df is not None:
     
     observacoes = st.text_area("📝 Observações da Vistoria:")
 
-    # --- BOTÃO PDF ---
     st.markdown("---")
     if st.button("🚀 Preparar PDF"):
+        # Passa os dados para o PDF
         pdf_bytes = exportar_pdf(dados, endereco, lat_lon_str, observacoes)
         
         st.download_button(
