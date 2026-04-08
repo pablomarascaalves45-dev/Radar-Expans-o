@@ -17,6 +17,7 @@ st.markdown("""
     [data-testid="stMetricValue"] { font-size: 1.6rem !important; color: #ffffff !important; }
     [data-testid="stMetricLabel"] { font-size: 0.9rem !important; color: #9da5b1 !important; }
     .stSelectSlider label { font-size: 0.85rem !important; font-weight: bold; }
+    .region-text { font-size: 0.8rem; color: #9da5b1; margin-top: -10px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -43,6 +44,13 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia,
     municipio = str(dados_cidade.get('Município', 'N/A')).encode('latin-1', 'ignore').decode('latin-1')
     pdf.cell(200, 8, txt=f"Municipio: {municipio}", ln=True)
     pdf.cell(200, 8, txt=f"Populacao: {formatar_br(dados_cidade.get('População', 0), 0)}", ln=True)
+    
+    # Adicionando Regiões ao PDF
+    reg_imediata = str(dados_cidade.get('REGIÃO GEOGRÁFICA IMEDIATA', 'N/A')).encode('latin-1', 'ignore').decode('latin-1')
+    reg_interm = str(dados_cidade.get('REGIÃO GEOGRÁFICA INTERMEDIÁRIA', 'N/A')).encode('latin-1', 'ignore').decode('latin-1')
+    pdf.cell(200, 8, txt=f"Regiao Imediata: {reg_imediata}", ln=True)
+    pdf.cell(200, 8, txt=f"Regiao Intermediaria: {reg_interm}", ln=True)
+    
     pdf.ln(5)
     
     pdf.set_font("Arial", "B", 12)
@@ -135,17 +143,35 @@ if df is not None:
             st.metric("💰 Renda Média", formatar_br(dados.get('Renda Média Domiciliar (SM)', 0), 2))
             st.metric("🏗️ Lojas Cabem", formatar_br(dados.get('Lojas Cabem', 0), 0))
 
+        # AJUSTE 1: Exibição das Regiões abaixo de Share e Demanda
+        reg_imediata = dados.get('REGIÃO GEOGRÁFICA IMEDIATA', 'N/A')
+        reg_intermediaria = dados.get('REGIÃO GEOGRÁFICA INTERMEDIÁRIA', 'N/A')
+        st.markdown(f"""
+            <div class='region-text'>
+                <b>REGIÃO IMEDIATA:</b> {reg_imediata} | <b>REGIÃO INTERMEDIÁRIA:</b> {reg_intermediaria}
+            </div>
+            """, unsafe_allow_html=True)
+
     st.markdown("---")
     
     # 2. LOCALIZAÇÃO
     st.subheader("2. Mídia e Localização")
     endereco = st.text_input("📍 Link ou Endereço do Ponto:")
+    
+    # AJUSTE 2: Captura automática de GPS logo abaixo do endereço
+    loc = get_geolocation()
+    if loc:
+        lat = loc['coords']['latitude']
+        lon = loc['coords']['longitude']
+        lat_lon_str = f"{lat}, {lon}"
+        st.success(f"📍 GPS Ativo: Lat: {lat}, Lon: {lon}")
+    else:
+        lat_lon_str = "Não capturado"
+        st.warning("Aguardando permissão de localização/GPS...")
+
     foto = st.file_uploader("📸 Foto do Imóvel:", type=['jpg', 'jpeg', 'png'])
     if foto: st.image(foto, use_container_width=True)
     
-    loc = get_geolocation()
-    lat_lon_str = f"{loc['coords']['latitude']}, {loc['coords']['longitude']}" if loc else "Não capturado"
-
     st.markdown("---")
 
     # 3. DADOS DO PONTO
@@ -153,7 +179,6 @@ if df is not None:
     col_a, col_b = st.columns(2)
     col_c, col_d = st.columns(2)
     
-    # Removido o parâmetro 'value' para iniciar sempre na primeira opção (esquerda)
     with col_a:
         f_pess = st.select_slider("Fluxo de pessoas", options=["Baixo", "Médio", "Alto"])
     with col_b:
