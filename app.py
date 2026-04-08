@@ -20,24 +20,18 @@ st.subheader("1. Mercado da Cidade")
 @st.cache_data
 def load_data():
     try:
-        # Carrega o arquivo sem pular linhas inicialmente para encontrar o cabeçalho
         file_path = 'Ranking PCA.xlsx'
         df_raw = pd.read_excel(file_path, header=None)
         
-        # Procura a linha que contém a palavra "Município"
+        # Procura a linha do cabeçalho
         header_row = 0
         for i, row in df_raw.iterrows():
-            if "Município" in row.values:
+            if "Município" in [str(val).strip() for val in row.values]:
                 header_row = i
                 break
         
-        # Recarrega o dataframe usando a linha correta como cabeçalho
         df = pd.read_excel(file_path, skiprows=header_row)
-        
-        # Limpa nomes de colunas (remove espaços e garante que sejam strings)
         df.columns = [str(c).strip() for c in df.columns]
-        
-        # Remove colunas e linhas totalmente vazias
         df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
         df = df.dropna(subset=['Município'])
         
@@ -49,53 +43,55 @@ def load_data():
 df = load_data()
 
 if df is not None:
-    coluna_cidade = 'Município'
-    
-    # Lista de cidades
-    cidades = sorted(df[coluna_cidade].unique())
-    
+    cidades = sorted(df['Município'].unique())
     cidade_selecionada = st.selectbox("Selecione o município:", options=cidades)
 
     if cidade_selecionada:
-        dados = df[df[coluna_cidade] == cidade_selecionada].iloc[0]
+        # Puxa os dados da cidade
+        dados = df[df['Município'] == cidade_selecionada].iloc[0]
 
         st.markdown("---")
         col1, col2 = st.columns(2)
 
         with col1:
-            # População
-            pop = dados.get('População', 0)
-            try:
-                # Remove pontos de milhar se existirem e converte para número
-                pop_val = int(str(pop).replace('.', '').split(',')[0])
-            except:
-                pop_val = 0
+            # --- POPULAÇÃO ---
+            # Tenta encontrar 'População' ou 'Populacao'
+            col_pop = 'População' if 'População' in df.columns else 'Populacao'
+            pop_val_raw = dados.get(col_pop, 0)
+            
+            # Limpeza de números que venham como texto "1.234"
+            if isinstance(pop_val_raw, str):
+                pop_val = int(pop_val_raw.replace('.', '').replace(',', ''))
+            else:
+                pop_val = int(pop_val_raw)
+            
             st.metric(label="👥 População", value=f"{pop_val:,}".replace(',', '.'))
             
-            # %Share
-            share = dados.get('%Share', 0)
-            if isinstance(share, (float, int)):
-                share_txt = f"{share * 100:.2f}".replace('.', ',')
+            # --- SHARE ---
+            # Tenta encontrar '%Share', '% Share' ou 'Share'
+            col_share = next((c for c in df.columns if 'Share' in c), None)
+            share_val = dados.get(col_share, 0) if col_share else 0
+            
+            if isinstance(share_val, (float, int)):
+                # Se for decimal (0.05), transforma em (5,00)
+                share_num = share_val * 100 if share_val < 1 else share_val
+                share_txt = f"{share_num:.2f}".replace('.', ',')
             else:
-                share_txt = str(share).replace('%', '').replace('.', ',')
+                share_txt = str(share_val).replace('%', '').strip().replace('.', ',')
+            
             st.metric(label="📊 Share da Cidade", value=f"{share_txt}%")
 
         with col2:
-            # Lojas Atuais
-            lojas = dados.get('Nº FSJ', 0)
-            try:
-                lojas_val = int(lojas)
-            except:
-                lojas_val = 0
+            # --- LOJAS ATUAIS ---
+            col_fsj = 'Nº FSJ' if 'Nº FSJ' in df.columns else 'FSJ'
+            lojas_val = int(dados.get(col_fsj, 0))
             st.metric(label="🏠 Lojas Atuais (FSJ)", value=lojas_val)
             
-            # Porte
+            # --- PORTE ---
             porte = dados.get('Porte da cidade', 'N/A')
             st.metric(label="📍 Porte", value=porte)
 
         st.markdown("---")
-        # Rodapé
-        regiao = dados.get('REGIÃO GEOGRÁFICA IMEDIATA', 'Não informada')
+        reg_col = 'REGIÃO GEOGRÁFICA IMEDIATA' if 'REGIÃO GEOGRÁFICA IMEDIATA' in df.columns else 'Região'
+        regiao = dados.get(reg_col, 'Não informada')
         st.caption(f"Município: **{cidade_selecionada}** | Região: **{regiao}**")
-else:
-    st.info("Carregando base de dados...")
