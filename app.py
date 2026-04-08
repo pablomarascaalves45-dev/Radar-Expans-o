@@ -20,15 +20,30 @@ st.subheader("1. Mercado da Cidade")
 @st.cache_data
 def load_data():
     try:
-        # ATUALIZADO: Nome do arquivo conforme seu GitHub
-        # ATUALIZADO: skiprows=1 para ignorar o cabeçalho preto da planilha
-        df = pd.read_excel('Ranking PCA.xlsx', skiprows=1)
+        # Carrega o arquivo sem pular linhas inicialmente para encontrar o cabeçalho
+        file_path = 'Ranking PCA.xlsx'
+        df_raw = pd.read_excel(file_path, header=None)
         
-        # Limpa espaços em branco nos nomes das colunas
+        # Procura a linha que contém a palavra "Município"
+        header_row = 0
+        for i, row in df_raw.iterrows():
+            if "Município" in row.values:
+                header_row = i
+                break
+        
+        # Recarrega o dataframe usando a linha correta como cabeçalho
+        df = pd.read_excel(file_path, skiprows=header_row)
+        
+        # Limpa nomes de colunas (remove espaços e garante que sejam strings)
         df.columns = [str(c).strip() for c in df.columns]
+        
+        # Remove colunas e linhas totalmente vazias
+        df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
+        df = df.dropna(subset=['Município'])
+        
         return df
     except Exception as e:
-        st.error(f"Erro ao carregar 'Ranking PCA.xlsx': {e}")
+        st.error(f"Erro ao processar a planilha: {e}")
         return None
 
 df = load_data()
@@ -36,52 +51,51 @@ df = load_data()
 if df is not None:
     coluna_cidade = 'Município'
     
-    if coluna_cidade in df.columns:
-        # Remove linhas vazias e cria a lista de cidades
-        df = df.dropna(subset=[coluna_cidade])
-        cidades = sorted(df[coluna_cidade].unique())
-        
-        cidade_selecionada = st.selectbox("Selecione o município:", options=cidades)
+    # Lista de cidades
+    cidades = sorted(df[coluna_cidade].unique())
+    
+    cidade_selecionada = st.selectbox("Selecione o município:", options=cidades)
 
-        if cidade_selecionada:
-            # Filtra os dados da cidade escolhida
-            dados = df[df[coluna_cidade] == cidade_selecionada].iloc[0]
+    if cidade_selecionada:
+        dados = df[df[coluna_cidade] == cidade_selecionada].iloc[0]
 
-            st.markdown("---")
+        st.markdown("---")
+        col1, col2 = st.columns(2)
 
-            col1, col2 = st.columns(2)
+        with col1:
+            # População
+            pop = dados.get('População', 0)
+            try:
+                # Remove pontos de milhar se existirem e converte para número
+                pop_val = int(str(pop).replace('.', '').split(',')[0])
+            except:
+                pop_val = 0
+            st.metric(label="👥 População", value=f"{pop_val:,}".replace(',', '.'))
+            
+            # %Share
+            share = dados.get('%Share', 0)
+            if isinstance(share, (float, int)):
+                share_txt = f"{share * 100:.2f}".replace('.', ',')
+            else:
+                share_txt = str(share).replace('%', '').replace('.', ',')
+            st.metric(label="📊 Share da Cidade", value=f"{share_txt}%")
 
-            with col1:
-                # --- POPULAÇÃO ---
-                pop = dados.get('População', 0)
-                # Garante que seja tratado como número para formatar com ponto
-                try:
-                    pop_val = int(str(pop).replace('.', '').split(',')[0]) if pd.notnull(pop) else 0
-                except:
-                    pop_val = 0
-                st.metric(label="👥 População", value=f"{pop_val:,}".replace(',', '.'))
-                
-                # --- SHARE ---
-                share = dados.get('%Share', 0)
-                if isinstance(share, (float, int)):
-                    share_txt = f"{share * 100:.2f}".replace('.', ',')
-                else:
-                    share_txt = str(share).replace('%', '').replace('.', ',')
-                st.metric(label="📊 Share da Cidade", value=f"{share_txt}%")
+        with col2:
+            # Lojas Atuais
+            lojas = dados.get('Nº FSJ', 0)
+            try:
+                lojas_val = int(lojas)
+            except:
+                lojas_val = 0
+            st.metric(label="🏠 Lojas Atuais (FSJ)", value=lojas_val)
+            
+            # Porte
+            porte = dados.get('Porte da cidade', 'N/A')
+            st.metric(label="📍 Porte", value=porte)
 
-            with col2:
-                # --- LOJAS ATUAIS ---
-                lojas = dados.get('Nº FSJ', 0)
-                st.metric(label="🏠 Lojas Atuais (FSJ)", value=int(lojas) if pd.notnull(lojas) else 0)
-                
-                # --- PORTE ---
-                porte = dados.get('Porte da cidade', 'N/A')
-                st.metric(label="📍 Porte", value=porte)
-
-            st.markdown("---")
-
-            # --- RODAPÉ ---
-            regiao = dados.get('REGIÃO GEOGRÁFICA IMEDIATA', 'Não informada')
-            st.caption(f"Município: **{cidade_selecionada}** | Região: **{regiao}**")
-    else:
-        st.error(f"Coluna '{coluna_cidade}' não encontrada. Verifique os títulos na sua planilha.")
+        st.markdown("---")
+        # Rodapé
+        regiao = dados.get('REGIÃO GEOGRÁFICA IMEDIATA', 'Não informada')
+        st.caption(f"Município: **{cidade_selecionada}** | Região: **{regiao}**")
+else:
+    st.info("Carregando base de dados...")
