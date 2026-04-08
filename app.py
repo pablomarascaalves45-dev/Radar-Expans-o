@@ -8,8 +8,8 @@ st.set_page_config(page_title="Radar de Expansão", layout="centered")
 st.markdown("""
     <style>
     .main { background-color: #0e1117; }
-    [data-testid="stMetricValue"] { font-size: 1.8rem !important; color: #ffffff !important; }
-    [data-testid="stMetricLabel"] { font-size: 1rem !important; color: #9da5b1 !important; }
+    [data-testid="stMetricValue"] { font-size: 1.6rem !important; color: #ffffff !important; }
+    [data-testid="stMetricLabel"] { font-size: 0.9rem !important; color: #9da5b1 !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -46,7 +46,9 @@ if df is not None:
         dados = df[df['Município'] == cidade_selecionada].iloc[0]
 
         st.markdown("---")
-        col1, col2 = st.columns(2)
+        
+        # Ajustado para 3 colunas para acomodar as novas métricas
+        col1, col2, col3 = st.columns(3)
 
         with col1:
             # --- POPULAÇÃO ---
@@ -77,12 +79,24 @@ if df is not None:
                 demanda_display = demanda
             st.metric(label="📈 Demanda", value=demanda_display)
 
+        with col3:
+            # --- RENDA MÉDIA DOMICILIAR ---
+            # O nome da coluna deve ser exato ao do Excel
+            renda = dados.get('Renda Média Domiciliar (SM)', 0)
+            if isinstance(renda, (int, float)):
+                renda_txt = f"{renda:.2f}".replace('.', ',')
+            else:
+                renda_txt = str(renda).replace('.', ',')
+            st.metric(label="💰 Renda Média (SM)", value=renda_txt)
+
+            # --- LOJAS CABEM ---
+            cabem = dados.get('Lojas Cabem', 0)
+            st.metric(label="🏗️ Lojas Cabem", value=int(cabem) if pd.notnull(cabem) else 0)
+
         st.markdown("---")
         
-        # --- RODAPÉ AJUSTADO ---
-        # Buscamos os nomes longos na planilha
+        # --- RODAPÉ ---
         reg_imediata = dados.get('REGIÃO GEOGRÁFICA IMEDIATA', 'N/A')
         reg_intermediaria = dados.get('REGIÃO GEOGRÁFICA INTERMEDIÁRIA', 'N/A')
         
-        # Exibimos com os nomes simplificados conforme seu pedido
         st.caption(f"**Região Imediata:** {reg_imediata} | **Região Intermediária:** {reg_intermediaria}")
