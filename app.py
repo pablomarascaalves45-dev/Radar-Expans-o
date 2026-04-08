@@ -165,18 +165,20 @@ if df is not None:
     with col_d:
         c_popu = st.select_slider("Concentração populacional", options=["Baixo", "Médio", "Alto"], value="Médio")
 
-    # --- NOVA SEÇÃO: CONCORRÊNCIA ---
+    # --- NOVA SEÇÃO: CONCORRÊNCIA (AJUSTADA: Título centralizado e sliders lado a lado) ---
     st.write("")
-    st.markdown("### Concorrência")
+    # Centralizar o título usando HTML
+    st.markdown("<h3 style='text-align: center;'>Concorrência</h3>", unsafe_allow_html=True)
     
-    col_e, col_f = st.columns(2)
-    col_g, _ = st.columns(2) # Usando _ para manter o alinhamento das colunas
+    # Criar três colunas lado a lado para os concorrentes
+    col_c1, col_c2, col_c3 = st.columns(3)
 
-    with col_e:
+    # Colocar cada slider em sua coluna correspondente
+    with col_c1:
         conc_redes = st.select_slider("Redes", options=["Baixo", "Médio", "Alto"], value="Médio")
-    with col_f:
+    with col_c2:
         conc_indep = st.select_slider("Independentes", options=["Baixo", "Médio", "Alto"], value="Médio")
-    with col_g:
+    with col_c3:
         conc_canib = st.select_slider("Canibalização", options=["Baixo", "Médio", "Alto"], value="Médio")
 
     st.write("") 
