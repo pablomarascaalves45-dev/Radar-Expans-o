@@ -18,18 +18,14 @@ st.markdown("""
 st.title("🎯 Radar de Expansão")
 st.subheader("1. Mercado da Cidade")
 
-# Função para carregar os dados corrigida para Excel
 @st.cache_data
 def load_data():
     try:
-        # Ajustado para ler Excel (.xlsx) e o nome correto do arquivo
-        # Nota: Certifique-se de que 'openpyxl' está no seu requirements.txt
+        # Carrega o Excel
         df = pd.read_excel('Ranking PCA Cidades.xlsx') 
-        df.columns = df.columns.str.strip() # Remove espaços nos nomes das colunas
+        # Limpeza: remove espaços extras e garante que os nomes batam com a imagem
+        df.columns = df.columns.str.strip() 
         return df
-    except FileNotFoundError:
-        st.error("Arquivo 'Ranking PCA Cidades.xlsx' não encontrado no diretório do GitHub.")
-        return None
     except Exception as e:
         st.error(f"Erro ao ler a planilha: {e}")
         return None
@@ -37,8 +33,7 @@ def load_data():
 df = load_data()
 
 if df is not None:
-    # Barra de busca por município
-    # Certifique-se que a coluna na planilha se chama exatamente 'Município'
+    # Nome da coluna conforme a imagem: 'Município'
     coluna_cidade = 'Município' 
     
     if coluna_cidade in df.columns:
@@ -51,6 +46,7 @@ if df is not None:
         )
 
         if cidade_selecionada:
+            # Filtra a linha da cidade
             dados = df[df[coluna_cidade] == cidade_selecionada].iloc[0]
 
             st.divider()
@@ -58,26 +54,41 @@ if df is not None:
             col1, col2 = st.columns(2)
 
             with col1:
-                # População
-                pop_val = dados.get('populacao', 0)
+                # 1. População (Nome exato na imagem: 'População')
+                # Tratando caso o Excel leia como string com pontos (ex: 1.773.733)
+                pop_bruta = dados.get('População', 0)
+                if isinstance(pop_bruta, str):
+                    pop_val = pop_bruta.replace('.', '')
+                else:
+                    pop_val = pop_bruta
+                
                 st.metric(label="👥 População", value=f"{int(pop_val):,}".replace(',', '.'))
                 
-                # Share
-                share_val = str(dados.get('share', '0')).replace('.', ',')
-                st.metric(label="📊 Share da Cidade", value=f"{share_val}%")
+                # 2. %Share (Nome exato na imagem: '%Share')
+                share_val = dados.get('%Share', '0')
+                # Se vier como decimal (0.0762), multiplicamos por 100
+                if isinstance(share_val, (float, int)):
+                    share_display = f"{share_val * 100:.2f}".replace('.', ',')
+                else:
+                    share_display = str(share_val).replace('.', ',')
+                
+                st.metric(label="📊 Share da Cidade", value=f"{share_display}%")
 
             with col2:
-                # Vagas
-                vagas_val = int(dados.get('vagas_lojas', 0))
-                st.metric(label="🏠 Quantas lojas cabem", value=vagas_val)
+                # 3. Nº FSJ (Ajustei para o que aparece na imagem, já que 'vagas_lojas' não é visível)
+                fsj_val = int(dados.get('Nº FSJ', 0))
+                st.metric(label="🏠 Lojas Atuais (FSJ)", value=fsj_val)
                 
-                # Status
-                if 'status' in df.columns:
-                    st.metric(label="📍 Status", value=dados['status'])
+                # 4. Porte da cidade (Nome exato na imagem: 'Porte da cidade')
+                porte = dados.get('Porte da cidade', 'N/A')
+                st.metric(label="📍 Porte", value=porte)
 
             st.divider()
-            st.caption(f"Exibindo dados de: **{cidade_selecionada}**")
+            
+            # Informação extra da Região (Coluna: 'REGIÃO GEOGRÁFICA IMEDIATA')
+            regiao = dados.get('REGIÃO GEOGRÁFICA IMEDIATA', 'Não informada')
+            st.caption(f"Município: **{cidade_selecionada}** | Região: **{regiao}**")
     else:
-        st.error(f"Coluna '{coluna_cidade}' não encontrada. Verifique os nomes das colunas na planilha.")
+        st.error(f"Coluna '{coluna_cidade}' não encontrada. Verifique se o nome na planilha é exatamente 'Município'.")
 else:
     st.info("Aguardando carregamento da base de dados...")
