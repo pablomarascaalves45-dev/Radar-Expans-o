@@ -67,7 +67,6 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia,
     pdf.set_font("Arial", "B", 12)
     pdf.cell(200, 10, txt="3. Analise de Campo", ln=True)
     
-    # Seções de Análise no PDF
     secoes = [
         ("Atributos de Fluxo/Renda", avaliacoes),
         ("Caracteristicas do Ponto", caracteristicas),
@@ -153,16 +152,18 @@ if df is not None:
     st.subheader("3. Dados do Ponto")
     col_a, col_b = st.columns(2)
     col_c, col_d = st.columns(2)
+    
+    # Removido o parâmetro 'value' para iniciar sempre na primeira opção (esquerda)
     with col_a:
-        f_pess = st.select_slider("Fluxo de pessoas", options=["Baixo", "Médio", "Alto"], value="Médio")
+        f_pess = st.select_slider("Fluxo de pessoas", options=["Baixo", "Médio", "Alto"])
     with col_b:
-        f_veic = st.select_slider("Fluxo de veículos", options=["Baixo", "Médio", "Alto"], value="Médio")
+        f_veic = st.select_slider("Fluxo de veículos", options=["Baixo", "Médio", "Alto"])
     with col_c:
-        c_rend = st.select_slider("Classificação de renda", options=["Baixa", "Média", "Alta"], value="Média")
+        c_rend = st.select_slider("Classificação de renda", options=["Baixa", "Média", "Alta"])
     with col_d:
-        c_popu = st.select_slider("Concentração populacional", options=["Baixo", "Médio", "Alto"], value="Médio")
+        c_popu = st.select_slider("Concentração populacional", options=["Baixo", "Médio", "Alto"])
 
-    # --- NOVA SEÇÃO: CARACTERÍSTICAS DO PONTO ---
+    # --- CARACTERÍSTICAS DO PONTO ---
     st.write("")
     st.markdown("<h3 style='text-align: center;'>Características do Ponto</h3>", unsafe_allow_html=True)
     
@@ -176,7 +177,7 @@ if df is not None:
 
     col_cp4, col_cp5, col_cp6 = st.columns(3)
     with col_cp4:
-        char_acess = st.select_slider("Acessibilidade", options=["Baixa", "Média", "Alta"], value="Média")
+        char_acess = st.select_slider("Acessibilidade", options=["Baixa", "Média", "Alta"])
     with col_cp5:
         char_vagas = st.select_slider("Vagas", options=["Não", "Sim"])
     with col_cp6:
@@ -187,11 +188,11 @@ if df is not None:
     st.markdown("<h3 style='text-align: center;'>Concorrência</h3>", unsafe_allow_html=True)
     col_c1, col_c2, col_c3 = st.columns(3)
     with col_c1:
-        conc_redes = st.select_slider("Redes", options=["Baixo", "Médio", "Alto"], value="Médio")
+        conc_redes = st.select_slider("Redes", options=["Baixo", "Médio", "Alto"])
     with col_c2:
-        conc_indep = st.select_slider("Independentes", options=["Baixo", "Médio", "Alto"], value="Médio")
+        conc_indep = st.select_slider("Independentes", options=["Baixo", "Médio", "Alto"])
     with col_c3:
-        conc_canib = st.select_slider("Canibalização", options=["Baixo", "Médio", "Alto"], value="Médio")
+        conc_canib = st.select_slider("Canibalização", options=["Baixo", "Médio", "Alto"])
 
     # --- SEÇÃO: POLOS GERADORES DE TRÁFEGO ---
     st.write("")
