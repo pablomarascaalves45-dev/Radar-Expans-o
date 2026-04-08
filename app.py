@@ -29,7 +29,7 @@ def formatar_br(valor, casas=2):
         return str(valor)
 
 # --- FUNÇÃO PARA GERAR PDF ---
-def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia, foto_arquivo):
+def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia, polos, foto_arquivo):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", "B", 16)
@@ -66,9 +66,10 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia,
     pdf.ln(5)
     pdf.set_font("Arial", "B", 12)
     pdf.cell(200, 10, txt="3. Analise de Campo", ln=True)
-    pdf.set_font("Arial", "", 10)
     
-    # Seção Dados do Ponto
+    pdf.set_font("Arial", "B", 11)
+    pdf.cell(200, 7, txt="Atributos do Ponto:", ln=True)
+    pdf.set_font("Arial", "", 10)
     for chave, valor in avaliacoes.items():
         pdf.cell(200, 7, txt=f"{chave}: {valor}", ln=True)
     
@@ -76,8 +77,14 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia,
     pdf.set_font("Arial", "B", 11)
     pdf.cell(200, 7, txt="Concorrencia:", ln=True)
     pdf.set_font("Arial", "", 10)
-    # Seção Concorrência
     for chave, valor in concorrencia.items():
+        pdf.cell(200, 7, txt=f"{chave}: {valor}", ln=True)
+
+    pdf.ln(2)
+    pdf.set_font("Arial", "B", 11)
+    pdf.cell(200, 7, txt="Polos Geradores de Trafego:", ln=True)
+    pdf.set_font("Arial", "", 10)
+    for chave, valor in polos.items():
         pdf.cell(200, 7, txt=f"{chave}: {valor}", ln=True)
     
     pdf.ln(3)
@@ -165,15 +172,10 @@ if df is not None:
     with col_d:
         c_popu = st.select_slider("Concentração populacional", options=["Baixo", "Médio", "Alto"], value="Médio")
 
-    # --- NOVA SEÇÃO: CONCORRÊNCIA (AJUSTADA: Título centralizado e sliders lado a lado) ---
+    # --- SEÇÃO: CONCORRÊNCIA ---
     st.write("")
-    # Centralizar o título usando HTML
     st.markdown("<h3 style='text-align: center;'>Concorrência</h3>", unsafe_allow_html=True)
-    
-    # Criar três colunas lado a lado para os concorrentes
     col_c1, col_c2, col_c3 = st.columns(3)
-
-    # Colocar cada slider em sua coluna correspondente
     with col_c1:
         conc_redes = st.select_slider("Redes", options=["Baixo", "Médio", "Alto"], value="Médio")
     with col_c2:
@@ -181,10 +183,32 @@ if df is not None:
     with col_c3:
         conc_canib = st.select_slider("Canibalização", options=["Baixo", "Médio", "Alto"], value="Médio")
 
+    # --- NOVA SEÇÃO: POLOS GERADORES DE TRÁFEGO ---
+    st.write("")
+    st.markdown("<h3 style='text-align: center;'>Polos geradores de tráfego</h3>", unsafe_allow_html=True)
+    
+    # Linha 1 dos Polos
+    col_p1, col_p2, col_p3 = st.columns(3)
+    with col_p1:
+        polo_super = st.select_slider("Supermercado", options=["Não", "Sim"], value="Não")
+    with col_p2:
+        polo_pada = st.select_slider("Padaria", options=["Não", "Sim"], value="Não")
+    with col_p3:
+        polo_hosp = st.select_slider("Hospital/UPA", options=["Não", "Sim"], value="Não")
+        
+    # Linha 2 dos Polos
+    col_p4, col_p5, col_p6 = st.columns(3)
+    with col_p4:
+        polo_banc = st.select_slider("Bancos/Lotéricas", options=["Não", "Sim"], value="Não")
+    with col_p5:
+        polo_pet = st.select_slider("PetShop", options=["Não", "Sim"], value="Não")
+    with col_p6:
+        polo_fem = st.select_slider("Lojas público feminino", options=["Não", "Sim"], value="Não")
+
     st.write("") 
     observacoes = st.text_area("📝 Observações da Vistoria:", height=100)
 
-    # Dicionários de dados para o PDF
+    # Dicionários de dados
     avaliacoes = {
         "Fluxo de Pessoas": f_pess,
         "Fluxo de Veículos": f_veic,
@@ -198,10 +222,19 @@ if df is not None:
         "Canibalizacao": conc_canib
     }
 
+    dados_polos = {
+        "Supermercado": polo_super,
+        "Padaria": polo_pada,
+        "Hospital/UPA": polo_hosp,
+        "Bancos/Lotericas": polo_banc,
+        "PetShop": polo_pet,
+        "Lojas Publico Feminino": polo_fem
+    }
+
     st.markdown("---")
     if st.button("🚀 Preparar PDF"):
         try:
-            pdf_bytes = exportar_pdf(dados, endereco, lat_lon_str, observacoes, avaliacoes, dados_concorrencia, foto)
+            pdf_bytes = exportar_pdf(dados, endereco, lat_lon_str, observacoes, avaliacoes, dados_concorrencia, dados_polos, foto)
             st.download_button(
                 label="⬇️ Baixar Relatório PDF",
                 data=pdf_bytes,
