@@ -1,98 +1,62 @@
 import streamlit as st
 import pandas as pd
 
-st.set_page_config(page_title="Score Expansão Farmácia", layout="wide")
+# Configuração da página para o modo mobile/dark
+st.set_page_config(page_title="Radar de Expansão", layout="centered")
 
-st.title("📊 Radar de Expansão - Score de Pontos")
+# Estilização para ficar parecido com o print original
+st.markdown("""
+    <style>
+    .main { background-color: #0e1117; }
+    div[data-testid="stMetricValue"] { font-size: 2rem; color: #ffffff; }
+    label[data-testid="stMetricLabel"] { font-size: 1.1rem; color: #9da5b1; }
+    </style>
+    """, unsafe_allow_html=True)
 
-# Upload da planilha
-file = st.file_uploader("📂 Envie sua planilha Excel", type=["xlsx"])
+# Título do App
+st.title("🎯 Radar de Expansão")
+st.subheader("1. Mercado da Cidade")
 
-if file:
-    df = pd.read_excel(file)
+# Função para carregar os dados
+@st.cache_data
+def load_data():
+    # Substitua 'planilha.csv' pelo nome exato do seu arquivo no GitHub
+    df = pd.read_csv('planilha.csv', sep=',') 
+    # Limpeza básica: remover espaços extras nos nomes das colunas
+    df.columns = df.columns.str.strip()
+    return df
 
-    st.subheader("📋 Dados carregados")
-    st.dataframe(df)
+try:
+    df = load_data()
 
-    # --- MAPEAMENTOS ---
-    mapa_fluxo = {"Alto": 5, "Médio": 3, "Baixo": 1}
-    mapa_padrao = {"Alto": 5, "Médio": 3, "Baixo": 1}
-
-    # --- POTENCIAL ---
-    df["Fluxo_score"] = df["Fluxo"].map(mapa_fluxo)
-    df["Populacao_score"] = df["Populacao"].map(mapa_padrao)
-    df["Renda_score"] = df["Renda"].map(mapa_padrao)
-    df["Veiculos_score"] = df["Veiculos"].map(mapa_padrao)
-
-    df["Potencial"] = (
-        df["Fluxo_score"] * 0.4 +
-        df["Populacao_score"] * 0.3 +
-        df["Renda_score"] * 0.2 +
-        df["Veiculos_score"] * 0.1
+    # Barra de busca por cidade
+    cidade_selecionada = st.selectbox(
+        "Buscar Município:",
+        options=sorted(df['municipio'].unique()),
+        index=0
     )
 
-    # --- CONCORRÊNCIA (PENALIDADE) ---
-    def score_concorrencia(row):
-        score = 0
-        
-        # Redes
-        if row["Concorrentes_Rede"] > 3:
-            score -= 4
-        elif row["Concorrentes_Rede"] >= 1:
-            score -= 2
-        
-        # Próprias (FSJ)
-        if row["FSJ"] > 3:
-            score -= 5
-        elif row["FSJ"] >= 1:
-            score -= 3
-        
-        # Independentes
-        if row["Independentes"] > 10:
-            score -= 2
-        elif row["Independentes"] >= 5:
-            score -= 1
-        
-        return score
+    # Filtrar dados da cidade escolhida
+    dados = df[df['municipio'] == cidade_selecionada].iloc[0]
 
-    df["Concorrencia"] = df.apply(score_concorrencia, axis=1)
+    st.write("---")
 
-    # --- QUALIDADE DO PONTO ---
-    df["Visibilidade_score"] = df["Visibilidade"].map(mapa_padrao)
-    df["Acesso_score"] = df["Acesso"].map(mapa_padrao)
-    df["Regiao_score"] = df["Regiao"].map(mapa_padrao)
+    # Exibição das métricas em colunas
+    col1, col2 = st.columns(2)
 
-    df["Qualidade"] = (
-        df["Visibilidade_score"] * 0.5 +
-        df["Acesso_score"] * 0.3 +
-        df["Regiao_score"] * 0.2
-    )
+    with col1:
+        st.metric(label="População", value=f"{int(dados['populacao']):,}".replace(',', '.'))
+        st.metric(label="Share da Cidade", value=f"{dados['share']}%")
 
-    # --- SCORE FINAL ---
-    df["Score_Final"] = (
-        df["Potencial"] * 0.5 +
-        df["Concorrencia"] * 0.3 +
-        df["Qualidade"] * 0.2
-    )
+    with col2:
+        # Aqui você pode exibir o valor direto da planilha ou fazer um cálculo
+        # Exemplo: se na sua planilha a coluna se chama 'lojas_potencial'
+        st.metric(label="Quantas lojas cabem", value=f"{int(dados['vagas_lojas'])}")
+    
+    st.write("---")
+    
+    # Rodapé informativo
+    st.caption(f"Dados atualizados para a região de {cidade_selecionada}")
 
-    # --- CLASSIFICAÇÃO ---
-    def classificar(score):
-        if score >= 4:
-            return "🟢 Expansão"
-        elif score >= 3:
-            return "🟡 Avaliar"
-        elif score >= 2:
-            return "🔴 Risco"
-        else:
-            return "❌ Descartar"
-
-    df["Decisao"] = df["Score_Final"].apply(classificar)
-
-    # --- RESULTADO ---
-    st.subheader("🏆 Ranking de Pontos")
-    df = df.sort_values(by="Score_Final", ascending=False)
-    st.dataframe(df)
-
-    # --- GRÁFICO ---
-    st.subheader("📈 Distribuição de Score")
-    st.bar_chart(df["Score_Final"])
+except Exception as e:
+    st.error(f"Erro ao carregar os dados. Verifique se os nomes das colunas na planilha estão corretos. Erro: {e}")
