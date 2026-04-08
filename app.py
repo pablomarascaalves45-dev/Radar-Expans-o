@@ -10,7 +10,6 @@ st.markdown("""
     .main { background-color: #0e1117; }
     [data-testid="stMetricValue"] { font-size: 1.8rem !important; color: #ffffff !important; }
     [data-testid="stMetricLabel"] { font-size: 1rem !important; color: #9da5b1 !important; }
-    /* Ajuste para a barra de pesquisa */
     .stSelectbox label { color: #ffffff !important; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
@@ -19,61 +18,66 @@ st.markdown("""
 st.title("🎯 Radar de Expansão")
 st.subheader("1. Mercado da Cidade")
 
-# Função para carregar os dados
+# Função para carregar os dados corrigida para Excel
 @st.cache_data
 def load_data():
     try:
-        # Tenta carregar o CSV. Se o erro persistir, verifique se o separador é ',' ou ';'
-        df = pd.read_csv('Ranking PCA Cidades.xlsx', sep=',') 
+        # Ajustado para ler Excel (.xlsx) e o nome correto do arquivo
+        # Nota: Certifique-se de que 'openpyxl' está no seu requirements.txt
+        df = pd.read_excel('Ranking PCA Cidades.xlsx') 
         df.columns = df.columns.str.strip() # Remove espaços nos nomes das colunas
         return df
     except FileNotFoundError:
-        st.error("Arquivo 'Ranking PCA Cidades.xlsx' não encontrado no diretório.")
+        st.error("Arquivo 'Ranking PCA Cidades.xlsx' não encontrado no diretório do GitHub.")
+        return None
+    except Exception as e:
+        st.error(f"Erro ao ler a planilha: {e}")
         return None
 
 df = load_data()
 
 if df is not None:
-    # Barra de busca (Selectbox com busca por texto integrada)
-    # Dica: O Streamlit já permite digitar dentro do selectbox para filtrar
-    cidades_disponiveis = sorted(df['Município'].unique())
+    # Barra de busca por município
+    # Certifique-se que a coluna na planilha se chama exatamente 'Município'
+    coluna_cidade = 'Município' 
     
-    cidade_selecionada = st.selectbox(
-        "Selecione ou digite o nome do município:",
-        options=cidades_disponiveis,
-        help="Clique e digite o nome da cidade para filtrar rapidamente."
-    )
-
-    if cidade_selecionada:
-        # Filtrar dados da cidade escolhida
-        dados = df[df['Município'] == cidade_selecionada].iloc[0]
-
-        st.divider() # Linha horizontal moderna
-
-        # Exibição das métricas em colunas
-        col1, col2 = st.columns(2)
-
-        with col1:
-            # Formatação de número para padrão brasileiro (Ponto no milhar)
-            pop = f"{int(dados['populacao']):,}".replace(',', '.')
-            st.metric(label="👥 População", value=pop)
-            
-            # Formatação de percentual
-            share = f"{dados['share']}".replace('.', ',')
-            st.metric(label="📊 Share da Cidade", value=f"{share}%")
-
-        with col2:
-            # Valor de lojas
-            vagas = int(dados['vagas_lojas'])
-            st.metric(label="🏠 Quantas lojas cabem", value=vagas)
-            
-            # Status (adicionado para aproveitar a lógica do PCA anterior)
-            if 'status' in df.columns:
-                st.metric(label="📍 Status", value=dados['status'])
-
-        st.divider()
+    if coluna_cidade in df.columns:
+        cidades_disponiveis = sorted(df[coluna_cidade].unique())
         
-        # Rodapé informativo
-        st.caption(f"Exibindo dados de: **{cidade_selecionada}**")
+        cidade_selecionada = st.selectbox(
+            "Selecione ou digite o nome do município:",
+            options=cidades_disponiveis,
+            help="Digite o nome da cidade para filtrar."
+        )
+
+        if cidade_selecionada:
+            dados = df[df[coluna_cidade] == cidade_selecionada].iloc[0]
+
+            st.divider()
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+                # População
+                pop_val = dados.get('populacao', 0)
+                st.metric(label="👥 População", value=f"{int(pop_val):,}".replace(',', '.'))
+                
+                # Share
+                share_val = str(dados.get('share', '0')).replace('.', ',')
+                st.metric(label="📊 Share da Cidade", value=f"{share_val}%")
+
+            with col2:
+                # Vagas
+                vagas_val = int(dados.get('vagas_lojas', 0))
+                st.metric(label="🏠 Quantas lojas cabem", value=vagas_val)
+                
+                # Status
+                if 'status' in df.columns:
+                    st.metric(label="📍 Status", value=dados['status'])
+
+            st.divider()
+            st.caption(f"Exibindo dados de: **{cidade_selecionada}**")
+    else:
+        st.error(f"Coluna '{coluna_cidade}' não encontrada. Verifique os nomes das colunas na planilha.")
 else:
     st.info("Aguardando carregamento da base de dados...")
