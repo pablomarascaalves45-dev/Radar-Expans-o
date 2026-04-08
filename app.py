@@ -1,4 +1,4 @@
-import streamlit as st
+  import streamlit as st
 import pandas as pd
 from fpdf import FPDF
 from streamlit_js_eval import get_geolocation
@@ -76,4 +76,97 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, foto_arquivo):
     # 3. Observações da Vistoria
     pdf.ln(5)
     pdf.set_font("Arial", "B", 12)
-    pdf.cell(
+    pdf.cell(200, 10, txt="3. Observacoes da Vistoria", ln=True)
+    pdf.set_font("Arial", "", 10)
+    pdf.multi_cell(0, 8, txt=obs)
+    
+    pdf.ln(10)
+    data_hoje = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
+    pdf.cell(200, 10, txt=f"Gerado em: {data_hoje}", ln=True, align='R')
+    
+    return pdf.output(dest='S').encode('latin-1')
+
+# --- CARREGAMENTO DE DADOS ---
+@st.cache_data
+def load_data():
+    try:
+        file_path = 'Ranking PCA.xlsx'
+        df_raw = pd.read_excel(file_path, header=None)
+        header_row = 0
+        for i, row in df_raw.iterrows():
+            if "Município" in [str(val).strip() for val in row.values]:
+                header_row = i
+                break
+        df = pd.read_excel(file_path, skiprows=header_row)
+        df.columns = [str(c).strip() for c in df.columns]
+        return df
+    except:
+        return None
+
+df = load_data()
+
+# =========================================================
+# INTERFACE
+# =========================================================
+st.title("🎯 Radar de Expansão")
+
+if df is not None:
+    # SEÇÃO 1
+    st.subheader("1. Mercado da Cidade")
+    cidades = sorted(df['Município'].unique())
+    cidade_selecionada = st.selectbox("Selecione o município:", options=cidades)
+    
+    dados = df[df['Município'] == cidade_selecionada].iloc[0]
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("👥 População", formatar_br(dados.get('População', 0), 0))
+        st.metric("📊 Share", f"{formatar_br(dados.get('%Share', 0), 2)}%")
+    with col2:
+        st.metric("🏠 Lojas Atuais", formatar_br(dados.get('N° FSJ', 0), 0))
+        st.metric("📈 Demanda", formatar_br(dados.get('Demanda', 0), 2))
+    with col3:
+        st.metric("💰 Renda Média", formatar_br(dados.get('Renda Média Domiciliar (SM)', 0), 2))
+        st.metric("🏗️ Lojas Cabem", formatar_br(dados.get('Lojas Cabem', 0), 0))
+
+    reg_imediata = dados.get('REGIÃO GEOGRÁFICA IMEDIATA', 'Não encontrada')
+    reg_inter = dados.get('REGIÃO GEOGRÁFICA INTERMEDIÁRIA', 'Não encontrada')
+    
+    st.markdown(f"""
+        <div style="font-size: 0.85rem; color: #9da5b1; margin-top: -10px; padding-bottom: 20px;">
+            <strong>REGIÃO IMEDIATA:</strong> {reg_imediata} | 
+            <strong>REGIÃO INTERMEDIÁRIA:</strong> {reg_inter}
+        </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("---")
+    
+    # SEÇÃO 2 - Coleta de Mídia e Localização
+    st.subheader("2. Mídia e Localização")
+    endereco = st.text_input("📍 Link ou Endereço do Ponto:")
+    
+    foto = st.file_uploader("📸 Foto do Imóvel (Câmera ou Galeria):", type=['jpg', 'jpeg', 'png'])
+    if foto:
+        st.image(foto, caption="Prévia da Foto Selecionada", use_container_width=True)
+    
+    loc = get_geolocation()
+    lat_lon_str = "Não capturado"
+    if loc:
+        lat_lon_str = f"{loc['coords']['latitude']}, {loc['coords']['longitude']}"
+        st.success(f"📍 GPS Ativo: {lat_lon_str}")
+    
+    st.markdown("---")
+
+    # SEÇÃO 3 - AJUSTADO: Título acima das observações
+    st.subheader("3. Dados do Ponto")
+    observacoes = st.text_area("📝 Observações da Vistoria:", height=150, placeholder="Descreva os detalhes do ponto aqui...")
+
+    st.markdown("---")
+    if st.button("🚀 Preparar PDF"):
+        pdf_bytes = exportar_pdf(dados, endereco, lat_lon_str, observacoes, foto)
+        st.download_button(
+            label="⬇️ Baixar Relatório PDF",
+            data=pdf_bytes,
+            file_name=f"Relatorio_{cidade_selecionada}.pdf",
+            mime="application/pdf"
+        )
