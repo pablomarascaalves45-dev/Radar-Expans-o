@@ -3,6 +3,8 @@ import pandas as pd
 from fpdf import FPDF
 from streamlit_js_eval import get_geolocation
 import datetime
+from PIL import Image
+import io
 
 # 1. Configuração da página
 st.set_page_config(page_title="Radar de Expansão", layout="centered")
@@ -25,7 +27,7 @@ def formatar_br(valor, casas=2):
         return str(valor)
 
 # --- FUNÇÃO PARA GERAR PDF ---
-def exportar_pdf(dados_cidade, endereco, lat_lon, obs):
+def exportar_pdf(dados_cidade, endereco, lat_lon, obs, foto_arquivo):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", "B", 16)
@@ -42,21 +44,37 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs):
     pdf.cell(200, 8, txt=f"Share: {formatar_br(dados_cidade.get('%Share', 0), 2)}%", ln=True)
     pdf.cell(200, 8, txt=f"Demanda: {formatar_br(dados_cidade.get('Demanda', 0), 2)}", ln=True)
     
-    # Adicionando Regiões no PDF
     reg_imediata = dados_cidade.get('REGIÃO GEOGRÁFICA IMEDIATA', 'N/A')
     reg_inter = dados_cidade.get('REGIÃO GEOGRÁFICA INTERMEDIÁRIA', 'N/A')
     pdf.cell(200, 8, txt=f"Regiao Imediata: {reg_imediata}", ln=True)
     pdf.cell(200, 8, txt=f"Regiao Intermediaria: {reg_inter}", ln=True)
     pdf.ln(5)
     
-    # 2. Ponto e Observações
+    # 2. Ponto e Foto
     pdf.set_font("Arial", "B", 12)
     pdf.cell(200, 10, txt="2. Analise do Ponto", ln=True)
     pdf.set_font("Arial", "", 10)
     pdf.cell(200, 8, txt=f"Endereco/Link: {endereco}", ln=True)
     pdf.cell(200, 8, txt=f"Coordenadas GPS: {lat_lon}", ln=True)
-    pdf.ln(5)
     
+    # Inserção da Foto no PDF
+    if foto_arquivo:
+        try:
+            img = Image.open(foto_arquivo)
+            # Converte para RGB para evitar erros com transparência (PNG)
+            if img.mode in ("RGBA", "P"):
+                img = img.convert("RGB")
+            
+            img_path = "temp_foto.jpg"
+            img.save(img_path)
+            pdf.ln(5)
+            # Insere a imagem com largura de 100mm (ajusta proporcionalmente)
+            pdf.image(img_path, w=100)
+            pdf.ln(5)
+        except Exception as e:
+            pdf.cell(200, 8, txt=f"Erro ao carregar imagem: {e}", ln=True)
+
+    # 3. Observações
     pdf.set_font("Arial", "B", 12)
     pdf.cell(200, 10, txt="3. Observacoes", ln=True)
     pdf.set_font("Arial", "", 10)
@@ -99,7 +117,6 @@ if df is not None:
     
     dados = df[df['Município'] == cidade_selecionada].iloc[0]
     
-    # Layout de Métricas
     col1, col2, col3 = st.columns(3)
     with col1:
         st.metric("👥 População", formatar_br(dados.get('População', 0), 0))
@@ -111,7 +128,6 @@ if df is not None:
         st.metric("💰 Renda Média", formatar_br(dados.get('Renda Média Domiciliar (SM)', 0), 2))
         st.metric("🏗️ Lojas Cabem", formatar_br(dados.get('Lojas Cabem', 0), 0))
 
-    # --- NOVO RODAPÉ DE REGIÕES ---
     reg_imediata = dados.get('REGIÃO GEOGRÁFICA IMEDIATA', 'Não encontrada')
     reg_inter = dados.get('REGIÃO GEOGRÁFICA INTERMEDIÁRIA', 'Não encontrada')
     
@@ -127,6 +143,11 @@ if df is not None:
     
     endereco = st.text_input("📍 Link ou Endereço do Ponto:")
     
+    # --- NOVO: UPLOAD DE FOTO ---
+    foto = st.file_uploader("📸 Foto do Imóvel (Câmera ou Galeria):", type=['jpg', 'jpeg', 'png'])
+    if foto:
+        st.image(foto, caption="Prévia da Foto Selecionada", use_container_width=True)
+    
     loc = get_geolocation()
     lat_lon_str = "Não capturado"
     if loc:
@@ -137,7 +158,7 @@ if df is not None:
 
     st.markdown("---")
     if st.button("🚀 Preparar PDF"):
-        pdf_bytes = exportar_pdf(dados, endereco, lat_lon_str, observacoes)
+        pdf_bytes = exportar_pdf(dados, endereco, lat_lon_str, observacoes, foto)
         st.download_button(
             label="⬇️ Baixar Relatório PDF",
             data=pdf_bytes,
