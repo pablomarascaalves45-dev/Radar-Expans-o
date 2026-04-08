@@ -36,7 +36,7 @@ df = load_data()
 if df is not None:
     # Barra de busca (Selectbox com busca por texto integrada)
     # Dica: O Streamlit já permite digitar dentro do selectbox para filtrar
-    cidades_disponiveis = sorted(df['municipio'].unique())
+    cidades_disponiveis = sorted(df['Município'].unique())
     
     cidade_selecionada = st.selectbox(
         "Selecione ou digite o nome do município:",
@@ -46,7 +46,7 @@ if df is not None:
 
     if cidade_selecionada:
         # Filtrar dados da cidade escolhida
-        dados = df[df['municipio'] == cidade_selecionada].iloc[0]
+        dados = df[df['Município'] == cidade_selecionada].iloc[0]
 
         st.divider() # Linha horizontal moderna
 
