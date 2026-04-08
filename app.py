@@ -28,12 +28,11 @@ def formatar_br(valor, casas=2):
         return str(valor)
 
 # --- FUNÇÃO PARA GERAR PDF ---
-def exportar_pdf(dados_cidade, endereco, lat_lon, obs, foto_arquivo):
+def exportar_pdf(dados_cidade, endereco, lat_lon, obs, fluxo, foto_arquivo):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", "B", 16)
     
-    # Título Principal (Sem acentos para evitar erro de encode)
     pdf.cell(200, 10, txt="Relatorio de Expansao - Analise de Ponto", ln=True, align='C')
     pdf.ln(10)
     
@@ -42,7 +41,6 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, foto_arquivo):
     pdf.cell(200, 10, txt="1. Mercado da Cidade", ln=True)
     pdf.set_font("Arial", "", 10)
     
-    # Limpeza básica de strings para o PDF
     municipio = str(dados_cidade['Município']).encode('latin-1', 'ignore').decode('latin-1')
     pdf.cell(200, 8, txt=f"Municipio: {municipio}", ln=True)
     pdf.cell(200, 8, txt=f"Populacao: {formatar_br(dados_cidade.get('População', 0), 0)}", ln=True)
@@ -58,7 +56,6 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, foto_arquivo):
     pdf.cell(200, 10, txt="2. Dados do Ponto", ln=True)
     pdf.set_font("Arial", "", 10)
     
-    # Endereço limpo
     txt_end = str(endereco).encode('latin-1', 'ignore').decode('latin-1')
     pdf.cell(200, 8, txt=f"Endereco: {txt_end}", ln=True)
     pdf.cell(200, 8, txt=f"GPS: {lat_lon}", ln=True)
@@ -68,32 +65,32 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, foto_arquivo):
             img = Image.open(foto_arquivo)
             if img.mode in ("RGBA", "P"):
                 img = img.convert("RGB")
-            
             img_path = "temp_foto.jpg"
             img.save(img_path)
             pdf.ln(5)
-            # Tenta manter a proporção na largura de 100mm
             pdf.image(img_path, w=100)
             pdf.ln(5)
             if os.path.exists(img_path): os.remove(img_path)
-        except Exception as e:
+        except:
             pdf.cell(200, 8, txt="Nao foi possivel processar a imagem.", ln=True)
 
-    # 3. Observações da Vistoria
+    # 3. Observações e Avaliação
     pdf.ln(5)
     pdf.set_font("Arial", "B", 12)
-    pdf.cell(200, 10, txt="3. Observacoes da Vistoria", ln=True)
+    pdf.cell(200, 10, txt="3. Analise Tecnica", ln=True)
     pdf.set_font("Arial", "", 10)
     
-    # Observações limpas
+    # Adicionando o Fluxo no PDF
+    pdf.cell(200, 8, txt=f"Fluxo de pessoas: {fluxo}", ln=True)
+    pdf.ln(2)
+    
     txt_obs = str(obs).encode('latin-1', 'ignore').decode('latin-1')
-    pdf.multi_cell(0, 8, txt=txt_obs)
+    pdf.multi_cell(0, 8, txt=f"Observacoes: {txt_obs}")
     
     pdf.ln(10)
     data_hoje = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
     pdf.cell(200, 10, txt=f"Gerado em: {data_hoje}", ln=True, align='R')
     
-    # O segredo do erro está aqui: latin-1 com replace/ignore
     return pdf.output(dest='S').encode('latin-1', errors='replace')
 
 # --- CARREGAMENTO DE DADOS ---
@@ -102,9 +99,7 @@ def load_data():
     try:
         file_path = 'Ranking PCA.xlsx'
         if not os.path.exists(file_path):
-            st.error(f"Arquivo '{file_path}' não encontrado no diretório.")
             return None
-            
         df_raw = pd.read_excel(file_path, header=None)
         header_row = 0
         for i, row in df_raw.iterrows():
@@ -114,8 +109,7 @@ def load_data():
         df = pd.read_excel(file_path, skiprows=header_row)
         df.columns = [str(c).strip() for c in df.columns]
         return df
-    except Exception as e:
-        st.error(f"Erro ao ler Excel: {e}")
+    except:
         return None
 
 df = load_data()
@@ -130,7 +124,6 @@ if df is not None:
     st.subheader("1. Mercado da Cidade")
     cidades = sorted(df['Município'].unique())
     cidade_selecionada = st.selectbox("Selecione o município:", options=cidades)
-    
     dados = df[df['Município'] == cidade_selecionada].iloc[0]
     
     col1, col2, col3 = st.columns(3)
@@ -146,15 +139,13 @@ if df is not None:
 
     st.markdown("---")
     
-    # SEÇÃO 2 - Localização
+    # SEÇÃO 2
     st.subheader("2. Mídia e Localização")
     endereco = st.text_input("📍 Link ou Endereço do Ponto:")
-    
     foto = st.file_uploader("📸 Foto do Imóvel:", type=['jpg', 'jpeg', 'png'])
     if foto:
         st.image(foto, caption="Prévia", use_container_width=True)
     
-    # Coordenadas
     loc = get_geolocation()
     lat_lon_str = "Não capturado"
     if loc:
@@ -165,12 +156,21 @@ if df is not None:
 
     # SEÇÃO 3
     st.subheader("3. Dados do Ponto")
-    observacoes = st.text_area("📝 Observações da Vistoria:", height=150)
+    observacoes = st.text_area("📝 Observações da Vistoria:", height=100)
+    
+    # --- NOVO CAMPO: FLUXO DE PESSOAS (SELECT SLIDER) ---
+    st.write("---")
+    st.markdown("**1° Fluxo de pessoas**")
+    fluxo_pessoa = st.select_slider(
+        "Arraste para selecionar a intensidade do fluxo:",
+        options=["Baixo", "Médio", "Alto"],
+        value="Médio"
+    )
 
     st.markdown("---")
     if st.button("🚀 Preparar PDF"):
         try:
-            pdf_bytes = exportar_pdf(dados, endereco, lat_lon_str, observacoes, foto)
+            pdf_bytes = exportar_pdf(dados, endereco, lat_lon_str, observacoes, fluxo_pessoa, foto)
             st.download_button(
                 label="⬇️ Baixar Relatório PDF",
                 data=pdf_bytes,
