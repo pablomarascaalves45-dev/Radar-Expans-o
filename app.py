@@ -51,9 +51,9 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, foto_arquivo):
     pdf.cell(200, 8, txt=f"Regiao Intermediaria: {reg_inter}", ln=True)
     pdf.ln(5)
     
-    # 2. Ponto e Foto
+    # 2. Dados do Ponto (Ajustado no PDF)
     pdf.set_font("Arial", "B", 12)
-    pdf.cell(200, 10, txt="2. Analise do Ponto", ln=True)
+    pdf.cell(200, 10, txt="2. Dados do Ponto", ln=True)
     pdf.set_font("Arial", "", 10)
     pdf.cell(200, 8, txt=f"Endereco/Link: {endereco}", ln=True)
     pdf.cell(200, 8, txt=f"Coordenadas GPS: {lat_lon}", ln=True)
@@ -106,62 +106,4 @@ df = load_data()
 
 # =========================================================
 # INTERFACE
-# =========================================================
-st.title("🎯 Radar de Expansão")
-
-if df is not None:
-    st.subheader("1. Mercado da Cidade")
-    cidades = sorted(df['Município'].unique())
-    cidade_selecionada = st.selectbox("Selecione o município:", options=cidades)
-    
-    dados = df[df['Município'] == cidade_selecionada].iloc[0]
-    
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("👥 População", formatar_br(dados.get('População', 0), 0))
-        st.metric("📊 Share", f"{formatar_br(dados.get('%Share', 0), 2)}%")
-    with col2:
-        st.metric("🏠 Lojas Atuais", formatar_br(dados.get('N° FSJ', 0), 0))
-        st.metric("📈 Demanda", formatar_br(dados.get('Demanda', 0), 2))
-    with col3:
-        st.metric("💰 Renda Média", formatar_br(dados.get('Renda Média Domiciliar (SM)', 0), 2))
-        st.metric("🏗️ Lojas Cabem", formatar_br(dados.get('Lojas Cabem', 0), 0))
-
-    reg_imediata = dados.get('REGIÃO GEOGRÁFICA IMEDIATA', 'Não encontrada')
-    reg_inter = dados.get('REGIÃO GEOGRÁFICA INTERMEDIÁRIA', 'Não encontrada')
-    
-    st.markdown(f"""
-        <div style="font-size: 0.85rem; color: #9da5b1; margin-top: -10px; padding-bottom: 20px;">
-            <strong>REGIÃO IMEDIATA:</strong> {reg_imediata} | 
-            <strong>REGIÃO INTERMEDIÁRIA:</strong> {reg_inter}
-        </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("---")
-    st.subheader("2. Análise do Ponto")
-    
-    endereco = st.text_input("📍 Link ou Endereço do Ponto:")
-    
-    foto = st.file_uploader("📸 Foto do Imóvel (Câmera ou Galeria):", type=['jpg', 'jpeg', 'png'])
-    if foto:
-        st.image(foto, caption="Prévia da Foto Selecionada", use_container_width=True)
-    
-    # --- AJUSTE NAS COORDENADAS GPS ---
-    loc = get_geolocation()
-    lat_lon_str = "Não capturado"
-    if loc:
-        # Extrai apenas os números e separa por vírgula
-        lat_lon_str = f"{loc['coords']['latitude']}, {loc['coords']['longitude']}"
-        st.success(f"📍 GPS Ativo: {lat_lon_str}")
-    
-    observacoes = st.text_area("📝 Observações da Vistoria:")
-
-    st.markdown("---")
-    if st.button("🚀 Preparar PDF"):
-        pdf_bytes = exportar_pdf(dados, endereco, lat_lon_str, observacoes, foto)
-        st.download_button(
-            label="⬇️ Baixar Relatório PDF",
-            data=pdf_bytes,
-            file_name=f"Relatorio_{cidade_selecionada}.pdf",
-            mime="application/pdf"
-        )
+# =
