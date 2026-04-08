@@ -77,7 +77,7 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, foto_arquivo)
     
     return pdf.output(dest='S').encode('latin-1', errors='replace')
 
-# --- CARREGAMENTO DE DADOS (CORRIGIDO) ---
+# --- CARREGAMENTO DE DADOS ---
 @st.cache_data
 def load_data():
     try:
@@ -86,22 +86,15 @@ def load_data():
             st.error("Arquivo 'Ranking PCA.xlsx' não encontrado!")
             return None
         
-        # Lê o arquivo bruto para encontrar o cabeçalho real
         df_raw = pd.read_excel(file_path, header=None)
-        
-        # Procura a linha que contém a palavra "Município"
         header_idx = 0
         for i, row in df_raw.iterrows():
             if "Município" in [str(val).strip() for val in row.values]:
                 header_idx = i
                 break
         
-        # Recarrega o DF a partir da linha correta
         df = pd.read_excel(file_path, skiprows=header_idx)
-        
-        # Limpa espaços em branco nos nomes das colunas
         df.columns = [str(c).strip() for c in df.columns]
-        
         return df
     except Exception as e:
         st.error(f"Erro ao carregar Excel: {e}")
@@ -148,25 +141,25 @@ if df is not None:
 
     st.markdown("---")
 
-    # 3. DADOS DO PONTO (INDICADORES LADO A LADO)
+    # 3. DADOS DO PONTO (SEM NUMERAÇÃO)
     st.subheader("3. Dados do Ponto")
 
     col_a, col_b = st.columns(2)
     col_c, col_d = st.columns(2)
 
     with col_a:
-        f_pess = st.select_slider("1° Fluxo de pessoas", options=["Baixo", "Médio", "Alto"], value="Médio")
+        f_pess = st.select_slider("Fluxo de pessoas", options=["Baixo", "Médio", "Alto"], value="Médio")
     with col_b:
-        f_veic = st.select_slider("2° Fluxo de veículos", options=["Baixo", "Médio", "Alto"], value="Médio")
+        f_veic = st.select_slider("Fluxo de veículos", options=["Baixo", "Médio", "Alto"], value="Médio")
     with col_c:
-        c_rend = st.select_slider("3° Classificação de renda", options=["Baixa", "Média", "Alta"], value="Média")
+        c_rend = st.select_slider("Classificação de renda", options=["Baixa", "Média", "Alta"], value="Média")
     with col_d:
-        c_popu = st.select_slider("4° Concentração populacional", options=["Baixo", "Médio", "Alto"], value="Médio")
+        c_popu = st.select_slider("Concentração populacional", options=["Baixo", "Médio", "Alto"], value="Médio")
 
     st.write("") 
     observacoes = st.text_area("📝 Observações da Vistoria:", height=100)
 
-    # Dicionário de avaliações
+    # Dicionário de avaliações (atualizado para refletir o nome sem número)
     avaliacoes = {
         "Fluxo de Pessoas": f_pess,
         "Fluxo de Veículos": f_veic,
