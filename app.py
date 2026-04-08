@@ -18,7 +18,6 @@ st.markdown("""
 
 # --- FUNÇÃO AUXILIAR DE FORMATAÇÃO ---
 def formatar_br(valor, casas=2):
-    """Formata números para o padrão brasileiro (1.234,56)"""
     try:
         if pd.isna(valor): return "0"
         return f"{valor:,.{casas}f}".replace(",", "X").replace(".", ",").replace("X", ".")
@@ -34,17 +33,23 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs):
     pdf.cell(200, 10, txt="Relatorio de Expansao - Analise de Ponto", ln=True, align='C')
     pdf.ln(10)
     
+    # 1. Mercado
     pdf.set_font("Arial", "B", 12)
     pdf.cell(200, 10, txt="1. Mercado da Cidade", ln=True)
     pdf.set_font("Arial", "", 10)
-    
-    # Usando a formatação no PDF
     pdf.cell(200, 8, txt=f"Municipio: {dados_cidade['Município']}", ln=True)
     pdf.cell(200, 8, txt=f"Populacao: {formatar_br(dados_cidade.get('População', 0), 0)}", ln=True)
     pdf.cell(200, 8, txt=f"Share: {formatar_br(dados_cidade.get('%Share', 0), 2)}%", ln=True)
     pdf.cell(200, 8, txt=f"Demanda: {formatar_br(dados_cidade.get('Demanda', 0), 2)}", ln=True)
+    
+    # Adicionando Regiões no PDF
+    reg_imediata = dados_cidade.get('REGIÃO GEOGRÁFICA IMEDIATA', 'N/A')
+    reg_inter = dados_cidade.get('REGIÃO GEOGRÁFICA INTERMEDIÁRIA', 'N/A')
+    pdf.cell(200, 8, txt=f"Regiao Imediata: {reg_imediata}", ln=True)
+    pdf.cell(200, 8, txt=f"Regiao Intermediaria: {reg_inter}", ln=True)
     pdf.ln(5)
     
+    # 2. Ponto e Observações
     pdf.set_font("Arial", "B", 12)
     pdf.cell(200, 10, txt="2. Analise do Ponto", ln=True)
     pdf.set_font("Arial", "", 10)
@@ -94,24 +99,28 @@ if df is not None:
     
     dados = df[df['Município'] == cidade_selecionada].iloc[0]
     
-    # Tratamento e Formatação para a tela
-    pop = formatar_br(dados.get('População', 0), 0)
-    share = formatar_br(dados.get('%Share', 0), 2)
-    lojas = formatar_br(dados.get('N° FSJ', 0), 0)
-    demanda = formatar_br(dados.get('Demanda', 0), 2)
-    renda = formatar_br(dados.get('Renda Média Domiciliar (SM)', 0), 2)
-    cabem = formatar_br(dados.get('Lojas Cabem', 0), 0)
-    
+    # Layout de Métricas
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("👥 População", pop)
-        st.metric("📊 Share", f"{share}%")
+        st.metric("👥 População", formatar_br(dados.get('População', 0), 0))
+        st.metric("📊 Share", f"{formatar_br(dados.get('%Share', 0), 2)}%")
     with col2:
-        st.metric("🏠 Lojas Atuais", lojas)
-        st.metric("📈 Demanda", demanda)
+        st.metric("🏠 Lojas Atuais", formatar_br(dados.get('N° FSJ', 0), 0))
+        st.metric("📈 Demanda", formatar_br(dados.get('Demanda', 0), 2))
     with col3:
-        st.metric("💰 Renda Média", renda)
-        st.metric("🏗️ Lojas Cabem", cabem)
+        st.metric("💰 Renda Média", formatar_br(dados.get('Renda Média Domiciliar (SM)', 0), 2))
+        st.metric("🏗️ Lojas Cabem", formatar_br(dados.get('Lojas Cabem', 0), 0))
+
+    # --- NOVO RODAPÉ DE REGIÕES ---
+    reg_imediata = dados.get('REGIÃO GEOGRÁFICA IMEDIATA', 'Não encontrada')
+    reg_inter = dados.get('REGIÃO GEOGRÁFICA INTERMEDIÁRIA', 'Não encontrada')
+    
+    st.markdown(f"""
+        <div style="font-size: 0.85rem; color: #9da5b1; margin-top: -10px; padding-bottom: 20px;">
+            <strong>REGIÃO IMEDIATA:</strong> {reg_imediata} | 
+            <strong>REGIÃO INTERMEDIÁRIA:</strong> {reg_inter}
+        </div>
+    """, unsafe_allow_html=True)
 
     st.markdown("---")
     st.subheader("2. Análise do Ponto")
@@ -128,9 +137,7 @@ if df is not None:
 
     st.markdown("---")
     if st.button("🚀 Preparar PDF"):
-        # Passa os dados para o PDF
         pdf_bytes = exportar_pdf(dados, endereco, lat_lon_str, observacoes)
-        
         st.download_button(
             label="⬇️ Baixar Relatório PDF",
             data=pdf_bytes,
