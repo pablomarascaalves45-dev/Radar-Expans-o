@@ -29,7 +29,7 @@ def formatar_br(valor, casas=2):
         return str(valor)
 
 # --- FUNÇÃO PARA GERAR PDF ---
-def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, foto_arquivo):
+def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia, foto_arquivo):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", "B", 16)
@@ -68,7 +68,16 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, foto_arquivo)
     pdf.cell(200, 10, txt="3. Analise de Campo", ln=True)
     pdf.set_font("Arial", "", 10)
     
+    # Seção Dados do Ponto
     for chave, valor in avaliacoes.items():
+        pdf.cell(200, 7, txt=f"{chave}: {valor}", ln=True)
+    
+    pdf.ln(2)
+    pdf.set_font("Arial", "B", 11)
+    pdf.cell(200, 7, txt="Concorrencia:", ln=True)
+    pdf.set_font("Arial", "", 10)
+    # Seção Concorrência
+    for chave, valor in concorrencia.items():
         pdf.cell(200, 7, txt=f"{chave}: {valor}", ln=True)
     
     pdf.ln(3)
@@ -141,7 +150,7 @@ if df is not None:
 
     st.markdown("---")
 
-    # 3. DADOS DO PONTO (SEM NUMERAÇÃO)
+    # 3. DADOS DO PONTO
     st.subheader("3. Dados do Ponto")
 
     col_a, col_b = st.columns(2)
@@ -156,21 +165,41 @@ if df is not None:
     with col_d:
         c_popu = st.select_slider("Concentração populacional", options=["Baixo", "Médio", "Alto"], value="Médio")
 
+    # --- NOVA SEÇÃO: CONCORRÊNCIA ---
+    st.write("")
+    st.markdown("### Concorrência")
+    
+    col_e, col_f = st.columns(2)
+    col_g, _ = st.columns(2) # Usando _ para manter o alinhamento das colunas
+
+    with col_e:
+        conc_redes = st.select_slider("Redes", options=["Baixo", "Médio", "Alto"], value="Médio")
+    with col_f:
+        conc_indep = st.select_slider("Independentes", options=["Baixo", "Médio", "Alto"], value="Médio")
+    with col_g:
+        conc_canib = st.select_slider("Canibalização", options=["Baixo", "Médio", "Alto"], value="Médio")
+
     st.write("") 
     observacoes = st.text_area("📝 Observações da Vistoria:", height=100)
 
-    # Dicionário de avaliações (atualizado para refletir o nome sem número)
+    # Dicionários de dados para o PDF
     avaliacoes = {
         "Fluxo de Pessoas": f_pess,
         "Fluxo de Veículos": f_veic,
         "Classificação de Renda": c_rend,
         "Concentração Populacional": c_popu
     }
+    
+    dados_concorrencia = {
+        "Redes": conc_redes,
+        "Independentes": conc_indep,
+        "Canibalizacao": conc_canib
+    }
 
     st.markdown("---")
     if st.button("🚀 Preparar PDF"):
         try:
-            pdf_bytes = exportar_pdf(dados, endereco, lat_lon_str, observacoes, avaliacoes, foto)
+            pdf_bytes = exportar_pdf(dados, endereco, lat_lon_str, observacoes, avaliacoes, dados_concorrencia, foto)
             st.download_button(
                 label="⬇️ Baixar Relatório PDF",
                 data=pdf_bytes,
