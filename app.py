@@ -29,7 +29,7 @@ def formatar_br(valor, casas=2):
         return str(valor)
 
 # --- FUNÇÃO PARA GERAR PDF ---
-def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia, polos, foto_arquivo):
+def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia, polos, caracteristicas, foto_arquivo):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", "B", 16)
@@ -67,26 +67,22 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia,
     pdf.set_font("Arial", "B", 12)
     pdf.cell(200, 10, txt="3. Analise de Campo", ln=True)
     
-    pdf.set_font("Arial", "B", 11)
-    pdf.cell(200, 7, txt="Atributos do Ponto:", ln=True)
-    pdf.set_font("Arial", "", 10)
-    for chave, valor in avaliacoes.items():
-        pdf.cell(200, 7, txt=f"{chave}: {valor}", ln=True)
-    
-    pdf.ln(2)
-    pdf.set_font("Arial", "B", 11)
-    pdf.cell(200, 7, txt="Concorrencia:", ln=True)
-    pdf.set_font("Arial", "", 10)
-    for chave, valor in concorrencia.items():
-        pdf.cell(200, 7, txt=f"{chave}: {valor}", ln=True)
+    # Seções de Análise no PDF
+    secoes = [
+        ("Atributos de Fluxo/Renda", avaliacoes),
+        ("Caracteristicas do Ponto", caracteristicas),
+        ("Concorrencia", concorrencia),
+        ("Polos Geradores de Trafego", polos)
+    ]
 
-    pdf.ln(2)
-    pdf.set_font("Arial", "B", 11)
-    pdf.cell(200, 7, txt="Polos Geradores de Trafego:", ln=True)
-    pdf.set_font("Arial", "", 10)
-    for chave, valor in polos.items():
-        pdf.cell(200, 7, txt=f"{chave}: {valor}", ln=True)
-    
+    for titulo, dados_dict in secoes:
+        pdf.ln(2)
+        pdf.set_font("Arial", "B", 11)
+        pdf.cell(200, 7, txt=f"{titulo}:", ln=True)
+        pdf.set_font("Arial", "", 10)
+        for chave, valor in dados_dict.items():
+            pdf.cell(200, 7, txt=f"{chave}: {valor}", ln=True)
+
     pdf.ln(3)
     txt_obs = str(obs).encode('latin-1', 'ignore').decode('latin-1')
     pdf.multi_cell(0, 8, txt=f"Observacoes: {txt_obs}")
@@ -101,14 +97,12 @@ def load_data():
         if not os.path.exists(file_path):
             st.error("Arquivo 'Ranking PCA.xlsx' não encontrado!")
             return None
-        
         df_raw = pd.read_excel(file_path, header=None)
         header_idx = 0
         for i, row in df_raw.iterrows():
             if "Município" in [str(val).strip() for val in row.values]:
                 header_idx = i
                 break
-        
         df = pd.read_excel(file_path, skiprows=header_idx)
         df.columns = [str(c).strip() for c in df.columns]
         return df
@@ -141,8 +135,6 @@ if df is not None:
         with col3:
             st.metric("💰 Renda Média", formatar_br(dados.get('Renda Média Domiciliar (SM)', 0), 2))
             st.metric("🏗️ Lojas Cabem", formatar_br(dados.get('Lojas Cabem', 0), 0))
-    else:
-        st.error("A coluna 'Município' não foi detectada. Verifique o cabeçalho do Excel.")
 
     st.markdown("---")
     
@@ -159,10 +151,8 @@ if df is not None:
 
     # 3. DADOS DO PONTO
     st.subheader("3. Dados do Ponto")
-
     col_a, col_b = st.columns(2)
     col_c, col_d = st.columns(2)
-
     with col_a:
         f_pess = st.select_slider("Fluxo de pessoas", options=["Baixo", "Médio", "Alto"], value="Médio")
     with col_b:
@@ -171,6 +161,26 @@ if df is not None:
         c_rend = st.select_slider("Classificação de renda", options=["Baixa", "Média", "Alta"], value="Média")
     with col_d:
         c_popu = st.select_slider("Concentração populacional", options=["Baixo", "Médio", "Alto"], value="Médio")
+
+    # --- NOVA SEÇÃO: CARACTERÍSTICAS DO PONTO ---
+    st.write("")
+    st.markdown("<h3 style='text-align: center;'>Características do Ponto</h3>", unsafe_allow_html=True)
+    
+    col_cp1, col_cp2, col_cp3 = st.columns(3)
+    with col_cp1:
+        char_local = st.select_slider("Local", options=["Centro", "Bairro", "Interligação", "Intrabairro"])
+    with col_cp2:
+        char_posicao = st.select_slider("Posição", options=["Esquina", "Rótula", "Meio de quadra"])
+    with col_cp3:
+        char_visib = st.select_slider("Visibilidade", options=["Boa", "Ruim"])
+
+    col_cp4, col_cp5, col_cp6 = st.columns(3)
+    with col_cp4:
+        char_acess = st.select_slider("Acessibilidade", options=["Baixa", "Média", "Alta"], value="Média")
+    with col_cp5:
+        char_vagas = st.select_slider("Vagas", options=["Não", "Sim"])
+    with col_cp6:
+        char_solar = st.select_slider("Posição Solar", options=["Boa", "Ruim"])
 
     # --- SEÇÃO: CONCORRÊNCIA ---
     st.write("")
@@ -183,63 +193,37 @@ if df is not None:
     with col_c3:
         conc_canib = st.select_slider("Canibalização", options=["Baixo", "Médio", "Alto"], value="Médio")
 
-    # --- NOVA SEÇÃO: POLOS GERADORES DE TRÁFEGO ---
+    # --- SEÇÃO: POLOS GERADORES DE TRÁFEGO ---
     st.write("")
     st.markdown("<h3 style='text-align: center;'>Polos geradores de tráfego</h3>", unsafe_allow_html=True)
-    
-    # Linha 1 dos Polos
     col_p1, col_p2, col_p3 = st.columns(3)
     with col_p1:
-        polo_super = st.select_slider("Supermercado", options=["Não", "Sim"], value="Não")
+        polo_super = st.select_slider("Supermercado", options=["Não", "Sim"])
     with col_p2:
-        polo_pada = st.select_slider("Padaria", options=["Não", "Sim"], value="Não")
+        polo_pada = st.select_slider("Padaria", options=["Não", "Sim"])
     with col_p3:
-        polo_hosp = st.select_slider("Hospital/UPA", options=["Não", "Sim"], value="Não")
-        
-    # Linha 2 dos Polos
+        polo_hosp = st.select_slider("Hospital/UPA", options=["Não", "Sim"])
     col_p4, col_p5, col_p6 = st.columns(3)
     with col_p4:
-        polo_banc = st.select_slider("Bancos/Lotéricas", options=["Não", "Sim"], value="Não")
+        polo_banc = st.select_slider("Bancos/Lotéricas", options=["Não", "Sim"])
     with col_p5:
-        polo_pet = st.select_slider("PetShop", options=["Não", "Sim"], value="Não")
+        polo_pet = st.select_slider("PetShop", options=["Não", "Sim"])
     with col_p6:
-        polo_fem = st.select_slider("Lojas público feminino", options=["Não", "Sim"], value="Não")
+        polo_fem = st.select_slider("Lojas público feminino", options=["Não", "Sim"])
 
     st.write("") 
     observacoes = st.text_area("📝 Observações da Vistoria:", height=100)
 
-    # Dicionários de dados
-    avaliacoes = {
-        "Fluxo de Pessoas": f_pess,
-        "Fluxo de Veículos": f_veic,
-        "Classificação de Renda": c_rend,
-        "Concentração Populacional": c_popu
-    }
-    
-    dados_concorrencia = {
-        "Redes": conc_redes,
-        "Independentes": conc_indep,
-        "Canibalizacao": conc_canib
-    }
-
-    dados_polos = {
-        "Supermercado": polo_super,
-        "Padaria": polo_pada,
-        "Hospital/UPA": polo_hosp,
-        "Bancos/Lotericas": polo_banc,
-        "PetShop": polo_pet,
-        "Lojas Publico Feminino": polo_fem
-    }
+    # Coleta de dados para exportação
+    avaliacoes = {"Fluxo Pessoas": f_pess, "Fluxo Veículos": f_veic, "Renda": c_rend, "Concentração": c_popu}
+    dados_concorrencia = {"Redes": conc_redes, "Independentes": conc_indep, "Canibalizacao": conc_canib}
+    dados_polos = {"Supermercado": polo_super, "Padaria": polo_pada, "Hospital/UPA": polo_hosp, "Bancos": polo_banc, "PetShop": polo_pet, "Lojas Fem": polo_fem}
+    dados_caract = {"Local": char_local, "Posicao": char_posicao, "Visibilidade": char_visib, "Acessibilidade": char_acess, "Vagas": char_vagas, "Sol": char_solar}
 
     st.markdown("---")
     if st.button("🚀 Preparar PDF"):
         try:
-            pdf_bytes = exportar_pdf(dados, endereco, lat_lon_str, observacoes, avaliacoes, dados_concorrencia, dados_polos, foto)
-            st.download_button(
-                label="⬇️ Baixar Relatório PDF",
-                data=pdf_bytes,
-                file_name=f"Relatorio_{cidade_selecionada}.pdf",
-                mime="application/pdf"
-            )
+            pdf_bytes = exportar_pdf(dados, endereco, lat_lon_str, observacoes, avaliacoes, dados_concorrencia, dados_polos, dados_caract, foto)
+            st.download_button(label="⬇️ Baixar Relatório PDF", data=pdf_bytes, file_name=f"Relatorio_{cidade_selecionada}.pdf", mime="application/pdf")
         except Exception as e:
             st.error(f"Erro ao gerar PDF: {e}")
