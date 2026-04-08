@@ -16,8 +16,7 @@ st.markdown("""
     .main { background-color: #0e1117; }
     [data-testid="stMetricValue"] { font-size: 1.6rem !important; color: #ffffff !important; }
     [data-testid="stMetricLabel"] { font-size: 0.9rem !important; color: #9da5b1 !important; }
-    /* Ajuste para diminuir o espaço entre labels do slider */
-    .stSelectSlider label { font-size: 0.8rem !important; }
+    .stSelectSlider label { font-size: 0.85rem !important; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -38,16 +37,14 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, foto_arquivo)
     pdf.cell(200, 10, txt="Relatorio de Expansao - Analise de Ponto", ln=True, align='C')
     pdf.ln(10)
     
-    # 1. Mercado
     pdf.set_font("Arial", "B", 12)
     pdf.cell(200, 10, txt="1. Mercado da Cidade", ln=True)
     pdf.set_font("Arial", "", 10)
-    municipio = str(dados_cidade['Município']).encode('latin-1', 'ignore').decode('latin-1')
+    municipio = str(dados_cidade.get('Município', 'N/A')).encode('latin-1', 'ignore').decode('latin-1')
     pdf.cell(200, 8, txt=f"Municipio: {municipio}", ln=True)
     pdf.cell(200, 8, txt=f"Populacao: {formatar_br(dados_cidade.get('População', 0), 0)}", ln=True)
     pdf.ln(5)
     
-    # 2. Dados do Ponto
     pdf.set_font("Arial", "B", 12)
     pdf.cell(200, 10, txt="2. Dados do Ponto", ln=True)
     pdf.set_font("Arial", "", 10)
@@ -66,13 +63,11 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, foto_arquivo)
             if os.path.exists(img_path): os.remove(img_path)
         except: pass
 
-    # 3. Análise do Consultor
     pdf.ln(5)
     pdf.set_font("Arial", "B", 12)
     pdf.cell(200, 10, txt="3. Analise de Campo", ln=True)
     pdf.set_font("Arial", "", 10)
     
-    # Adicionando as 4 métricas de fluxo/renda
     for chave, valor in avaliacoes.items():
         pdf.cell(200, 7, txt=f"{chave}: {valor}", ln=True)
     
@@ -82,15 +77,35 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, foto_arquivo)
     
     return pdf.output(dest='S').encode('latin-1', errors='replace')
 
-# --- CARREGAMENTO DE DADOS ---
+# --- CARREGAMENTO DE DADOS (CORRIGIDO) ---
 @st.cache_data
 def load_data():
     try:
         file_path = 'Ranking PCA.xlsx'
-        df = pd.read_excel(file_path, skiprows=1) # Ajuste simples para o cabeçalho
+        if not os.path.exists(file_path):
+            st.error("Arquivo 'Ranking PCA.xlsx' não encontrado!")
+            return None
+        
+        # Lê o arquivo bruto para encontrar o cabeçalho real
+        df_raw = pd.read_excel(file_path, header=None)
+        
+        # Procura a linha que contém a palavra "Município"
+        header_idx = 0
+        for i, row in df_raw.iterrows():
+            if "Município" in [str(val).strip() for val in row.values]:
+                header_idx = i
+                break
+        
+        # Recarrega o DF a partir da linha correta
+        df = pd.read_excel(file_path, skiprows=header_idx)
+        
+        # Limpa espaços em branco nos nomes das colunas
         df.columns = [str(c).strip() for c in df.columns]
+        
         return df
-    except: return None
+    except Exception as e:
+        st.error(f"Erro ao carregar Excel: {e}")
+        return None
 
 df = load_data()
 
@@ -100,24 +115,42 @@ df = load_data()
 st.title("🎯 Radar de Expansão")
 
 if df is not None:
-    # SEÇÃO 1 e 2 omitidas para brevidade, mantendo lógica anterior...
-    cidades = sorted(df['Município'].unique())
-    cidade_selecionada = st.selectbox("Selecione o município:", options=cidades)
-    dados = df[df['Município'] == cidade_selecionada].iloc[0]
+    # 1. MERCADO
+    st.subheader("1. Mercado da Cidade")
+    if 'Município' in df.columns:
+        cidades = sorted(df['Município'].dropna().unique())
+        cidade_selecionada = st.selectbox("Selecione o município:", options=cidades)
+        dados = df[df['Município'] == cidade_selecionada].iloc[0]
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("👥 População", formatar_br(dados.get('População', 0), 0))
+            st.metric("📊 Share", f"{formatar_br(dados.get('%Share', 0), 2)}%")
+        with col2:
+            st.metric("🏠 Lojas Atuais", formatar_br(dados.get('N° FSJ', 0), 0))
+            st.metric("📈 Demanda", formatar_br(dados.get('Demanda', 0), 2))
+        with col3:
+            st.metric("💰 Renda Média", formatar_br(dados.get('Renda Média Domiciliar (SM)', 0), 2))
+            st.metric("🏗️ Lojas Cabem", formatar_br(dados.get('Lojas Cabem', 0), 0))
+    else:
+        st.error("A coluna 'Município' não foi detectada. Verifique o cabeçalho do Excel.")
+
+    st.markdown("---")
     
-    # (Campos de Endereço e Foto aqui...)
+    # 2. LOCALIZAÇÃO
+    st.subheader("2. Mídia e Localização")
     endereco = st.text_input("📍 Link ou Endereço do Ponto:")
     foto = st.file_uploader("📸 Foto do Imóvel:", type=['jpg', 'jpeg', 'png'])
+    if foto: st.image(foto, use_container_width=True)
     
     loc = get_geolocation()
     lat_lon_str = f"{loc['coords']['latitude']}, {loc['coords']['longitude']}" if loc else "Não capturado"
 
     st.markdown("---")
 
-    # SEÇÃO 3 - DADOS DO PONTO (ORDEM AJUSTADA)
+    # 3. DADOS DO PONTO (INDICADORES LADO A LADO)
     st.subheader("3. Dados do Ponto")
 
-    # Layout em Colunas para as Perguntas (Pequeno e Lado a Lado)
     col_a, col_b = st.columns(2)
     col_c, col_d = st.columns(2)
 
@@ -126,14 +159,14 @@ if df is not None:
     with col_b:
         f_veic = st.select_slider("2° Fluxo de veículos", options=["Baixo", "Médio", "Alto"], value="Médio")
     with col_c:
-        c_rend = st.select_slider("3° Classe de renda", options=["Baixa", "Média", "Alta"], value="Média")
+        c_rend = st.select_slider("3° Classificação de renda", options=["Baixa", "Média", "Alta"], value="Média")
     with col_d:
-        c_popu = st.select_slider("4° Conc. populacional", options=["Baixo", "Médio", "Alto"], value="Médio")
+        c_popu = st.select_slider("4° Concentração populacional", options=["Baixo", "Médio", "Alto"], value="Médio")
 
-    st.write("") # Espaçador
+    st.write("") 
     observacoes = st.text_area("📝 Observações da Vistoria:", height=100)
 
-    # Dicionário para enviar ao PDF
+    # Dicionário de avaliações
     avaliacoes = {
         "Fluxo de Pessoas": f_pess,
         "Fluxo de Veículos": f_veic,
@@ -141,6 +174,15 @@ if df is not None:
         "Concentração Populacional": c_popu
     }
 
+    st.markdown("---")
     if st.button("🚀 Preparar PDF"):
-        pdf_bytes = exportar_pdf(dados, endereco, lat_lon_str, observacoes, avaliacoes, foto)
-        st.download_button(label="⬇️ Baixar PDF", data=pdf_bytes, file_name=f"Analise_{cidade_selecionada}.pdf")
+        try:
+            pdf_bytes = exportar_pdf(dados, endereco, lat_lon_str, observacoes, avaliacoes, foto)
+            st.download_button(
+                label="⬇️ Baixar Relatório PDF",
+                data=pdf_bytes,
+                file_name=f"Relatorio_{cidade_selecionada}.pdf",
+                mime="application/pdf"
+            )
+        except Exception as e:
+            st.error(f"Erro ao gerar PDF: {e}")
