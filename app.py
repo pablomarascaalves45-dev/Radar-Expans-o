@@ -31,8 +31,8 @@ st.markdown("""
         margin: 5px 0;
     }
     .total-score-text {
-        font-size: 2.2rem;
-        color: #ffffff;
+        font-size: 2.8rem;
+        color: #00ffcc;
         font-weight: bold;
     }
     .warning-text {
@@ -49,7 +49,7 @@ def formatar_br(valor, casas=2):
         return f"{valor:,.{casas}f}".replace(",", "X").replace(".", ",").replace("X", ".")
     except: return str(valor)
 
-def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia, polos, caracteristicas, foto_arquivo, score_final, score_mercado, score_ponto):
+def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia, polos, caracteristicas, foto_arquivo, perc_final, score_mercado, score_ponto):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_margins(10, 10, 10)
@@ -61,7 +61,7 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia,
     pdf.set_fill_color(30, 33, 48)
     pdf.set_text_color(255, 255, 255)
     pdf.set_font("Arial", "B", 10)
-    pdf.cell(0, 8, txt=f"SCORE TOTAL: {score_final} PTS (Mercado: {score_mercado}/30 | Ponto: {score_ponto}/70)", ln=True, align='C', fill=True)
+    pdf.cell(0, 8, txt=f"ADERENCIA TOTAL: {perc_final} (Mercado: {score_mercado}/30 | Ponto: {score_ponto}/70)", ln=True, align='C', fill=True)
     pdf.set_text_color(0, 0, 0)
     pdf.ln(2)
 
@@ -289,25 +289,30 @@ if df is not None:
         elif char_visib == "Ruim": score_ponto_calc -= 3
         if char_solar == "Boa": score_ponto_calc += 2
 
-        score_ponto = min(70, score_ponto_calc)
-        score_final = score_mercado + score_ponto
+        # Ajuste de limite do score do ponto (0 a 70)
+        score_ponto = max(0, min(70, score_ponto_calc))
+
+        # --- CÁLCULO DA PORCENTAGEM PONDERADA (30% Mercado / 70% Ponto) ---
+        # Se mercado for insuficiente (negativo), ele contribui com 0% para a soma final, não subtrai.
+        aproveitamento_mercado = max(0, score_mercado) / 30
+        aproveitamento_ponto = score_ponto / 70
+        
+        porcentagem_final = (aproveitamento_mercado * 30) + (aproveitamento_ponto * 70)
 
         if st.button("📊 AVALIAR"):
-            # Lógica para mensagem de aviso ou porcentagem
+            # Lógica para mensagem de aviso ou porcentagem no Mercado
             if score_mercado < 0:
                 texto_mercado = f"<span class='warning-text'>Mercado e população insuficiente</span> ({score_mercado}/30)"
             else:
-                perc_mercado = (score_mercado / 30) * 100
-                texto_mercado = f"<b>{perc_mercado:.2f}%</b> ({score_mercado}/30)"
-
-            perc_ponto = (score_ponto / 70) * 100
+                texto_mercado = f"<b>{(score_mercado/30*100):.2f}%</b> ({score_mercado}/30)"
 
             st.markdown(f"""
                 <div class="score-container">
-                    <div class="sub-score-text">Mercado da Cidade: {texto_mercado}</div>
-                    <div class="sub-score-text">Dados do Ponto: <b>{perc_ponto:.2f}%</b> ({score_ponto}/70)</div>
+                    <div class="sub-score-text">Mercado da Cidade (Peso 30%): {texto_mercado}</div>
+                    <div class="sub-score-text">Dados do Ponto (Peso 70%): <b>{(aproveitamento_ponto*100):.2f}%</b> ({score_ponto}/70)</div>
                     <hr style="border: 0.5px solid #4a5568;">
-                    <div class="total-score-text">{score_final} pts</div>
+                    <div class="sub-score-text" style="color: #9da5b1; font-size: 0.9rem;">ADERÊNCIA TOTAL AO MODELO</div>
+                    <div class="total-score-text">{porcentagem_final:.2f}%</div>
                 </div>
             """, unsafe_allow_html=True)
 
@@ -316,7 +321,9 @@ if df is not None:
             pol = {"Supermercado": "Sim" if polo_super else "Nao", "Padaria": "Sim" if polo_pada else "Nao", "Hospital": "Sim" if polo_hosp else "Nao", "Bancos": "Sim" if polo_banc else "Nao", "Pet": "Sim" if polo_pet else "Nao", "Feminino": "Sim" if polo_fem else "Nao"}
             caract = {"Local": char_local, "Posicao": char_posicao, "Visibilidade": char_visib, "Acessibilidade": char_acess, "Vagas": char_vagas, "Sol": char_solar}
 
-            pdf_bytes = exportar_pdf(dados, endereco, lat_lon_str, observacoes, aval, conc, pol, caract, foto, score_final, score_mercado, score_ponto)
+            pdf_bytes = exportar_pdf(dados, endereco, lat_lon_str, observacoes, aval, conc, pol, caract, foto, f"{porcentagem_final:.2f}%", score_mercado, score_ponto)
             st.download_button(label="🚀 Baixar Relatório PDF", data=pdf_bytes, file_name=f"Relatorio_{cidade_selecionada}.pdf", mime="application/pdf")
     else:
         st.info("Por favor, selecione um município.")
+else:
+    st.error("Arquivo 'Ranking PCA.xlsx' não encontrado.")
