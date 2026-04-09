@@ -49,7 +49,7 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia,
     pdf = FPDF()
     pdf.add_page()
     pdf.set_margins(10, 10, 10)
-    pdf.set_auto_page_break(False)
+    pdf.set_auto_page_break(False) # Garante o controle manual para não gerar 2ª página
 
     # Cabeçalho
     pdf.set_font("Arial", "B", 12)
@@ -63,7 +63,7 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia,
     pdf.set_text_color(0, 0, 0)
     pdf.ln(2)
 
-    # --- SEÇÃO 1: DADOS DO MERCADO (Conforme o print) ---
+    # --- SEÇÃO 1: DADOS DO MERCADO (Alinhado com o Print) ---
     pdf.set_font("Arial", "B", 9)
     pdf.cell(0, 5, txt="1. DADOS DO MERCADO", ln=True)
     pdf.set_font("Arial", "", 8)
@@ -71,15 +71,12 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia,
     municipio = str(dados_cidade.get('Município', 'N/A')).encode('latin-1', 'ignore').decode('latin-1')
     pdf.cell(0, 5, txt=f"Cidade: {municipio} - {dados_cidade.get('UF', '')}", ln=True)
     
-    # Grid de informações do mercado (2 colunas x 3 linhas)
     pdf.set_font("Arial", "B", 8)
-    col_w = 60
-    
+    col_w = 63
     # Linha 1
     pdf.cell(col_w, 5, txt=f"Populacao: {formatar_br(dados_cidade.get('População', 0), 0)}", ln=0)
     pdf.cell(col_w, 5, txt=f"Lojas Atuais: {formatar_br(dados_cidade.get('N° FSJ', 0), 0)}", ln=0)
     pdf.cell(col_w, 5, txt=f"Renda Media: {formatar_br(dados_cidade.get('Renda Média Domiciliar (SM)', 0), 2)}", ln=1)
-    
     # Linha 2
     pdf.cell(col_w, 5, txt=f"Share: {formatar_br(dados_cidade.get('%Share', 0) * 100, 2)}%", ln=0)
     pdf.cell(col_w, 5, txt=f"Demanda: {formatar_br(dados_cidade.get('Demanda', 0), 2)}", ln=0)
@@ -94,13 +91,12 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia,
     pdf.cell(0, 4, txt=f"Coordenadas GPS: {lat_lon}", ln=True)
     pdf.ln(2)
 
-    # --- SEÇÃO 3: ANÁLISE TÉCNICA ---
+    # --- SEÇÃO 3: ANÁLISE TÉCNICA (Duas Colunas) ---
     pdf.set_font("Arial", "B", 9)
     pdf.cell(0, 5, txt="3. ANALISE TECNICA DO PONTO", ln=True)
     
     y_antes = pdf.get_y()
-    
-    # Coluna Esquerda: Fluxos e Concorrência
+    # Coluna Esquerda
     pdf.set_font("Arial", "B", 7)
     pdf.cell(95, 4, txt="FLUXOS E CONCORRENCIA", ln=True)
     pdf.set_font("Arial", "", 7)
@@ -109,7 +105,7 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia,
     for k, v in concorrencia.items():
         pdf.cell(95, 3.5, txt=f"- {k}: {v}", ln=True)
     
-    # Coluna Direita: Características e Polos
+    # Coluna Direita
     pdf.set_y(y_antes)
     pdf.set_x(105)
     pdf.set_font("Arial", "B", 7)
@@ -130,16 +126,36 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia,
     pdf.set_font("Arial", "", 7)
     pdf.multi_cell(0, 3.5, txt=str(obs).encode('latin-1', 'ignore').decode('latin-1'))
 
-    # Foto
+    # --- INSERÇÃO DE IMAGEM AUTOMÁTICA (OCUPAR ESPAÇO RESTANTE) ---
     if foto_arquivo:
         try:
             img = Image.open(foto_arquivo)
             if img.mode in ("RGBA", "P"): img = img.convert("RGB")
+            
+            w_orig, h_orig = img.size
+            aspect_ratio = w_orig / h_orig
+            
+            # Cálculo de espaço disponível
+            y_atual = pdf.get_y()
+            margem_seguranca = 10
+            altura_disponivel = 297 - y_atual - margem_seguranca
+            largura_disponivel = 190 # 210mm - 20mm de margens
+            
+            # Tenta preencher pela largura
+            nova_w = largura_disponivel
+            nova_h = nova_w / aspect_ratio
+            
+            # Se a altura estourar a página, ajusta pela altura disponível
+            if nova_h > altura_disponivel:
+                nova_h = altura_disponivel
+                nova_w = nova_h * aspect_ratio
+            
+            # Centralizar X
+            x_cent = (210 - nova_w) / 2
+            
             img_path = "temp_pdf_foto.jpg"
-            img.save(img_path)
-            espaco_restante = 280 - pdf.get_y() - 5
-            largura_img = 90 if espaco_restante > 50 else 50
-            pdf.image(img_path, x=60, y=pdf.get_y()+2, w=largura_img)
+            img.save(img_path, quality=90)
+            pdf.image(img_path, x=x_cent, y=y_atual + 5, w=nova_w, h=nova_h)
             os.remove(img_path)
         except: pass
 
