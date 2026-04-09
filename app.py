@@ -58,7 +58,8 @@ def formatar_br(valor, casas=2):
         return f"{valor:,.{casas}f}".replace(",", "X").replace(".", ",").replace("X", ".")
     except: return str(valor)
 
-def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia, polos, caracteristicas, foto_arquivo, perc_final, score_mercado, score_ponto):
+# AJUSTE NA FUNÇÃO DE PDF PARA INCLUIR OS SUB-SCORES
+def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia, polos, caracteristicas, foto_arquivo, perc_final, score_mercado, score_ponto, p_merc_txt, p_ponto_txt):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_margins(10, 10, 10)
@@ -71,6 +72,13 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia,
     pdf.set_text_color(255, 255, 255)
     pdf.set_font("Arial", "B", 10)
     pdf.cell(0, 8, txt=f"ADERENCIA TOTAL: {perc_final}", ln=True, align='C', fill=True)
+    
+    # NOVA LINHA COM OS DADOS DA IMAGEM (SUB-SCORES)
+    pdf.set_fill_color(240, 240, 240)
+    pdf.set_text_color(50, 50, 50)
+    pdf.set_font("Arial", "B", 8)
+    pdf.cell(0, 6, txt=f"Mercado da Cidade: {p_merc_txt}  |  Dados do Ponto: {p_ponto_txt}", ln=True, align='C', fill=True)
+    
     pdf.set_text_color(0, 0, 0)
     pdf.ln(2)
 
@@ -205,7 +213,7 @@ if df is not None:
             st.metric("💰 Renda Média", formatar_br(renda_media, 2))
             st.metric("🏗️ Lojas Cabem", formatar_br(lojas_cabem_valor, 0))
 
-        # --- CÁLCULO SCORE MERCADO (MÁX 30) ---
+        # --- SCORE MERCADO ---
         score_mercado = 0
         if lojas_cabem_valor > 0: score_mercado += 15
         if share_valor_original <= 0.30: score_mercado += 15
@@ -244,7 +252,6 @@ if df is not None:
         opcoes_sim_nao = ["Selecionar", "Sim", "Não"]
         opcoes_boa_ruim = ["Selecionar", "Boa", "Ruim"]
 
-        # PESOS
         peso_fluxo_pessoas = {"Selecionar": 0, "Baixo": 5, "Médio": 10, "Alto": 15}
         peso_padrao = {"Selecionar": 0, "Baixo": 1, "Médio": 3, "Alto": 5}
         peso_renda = {"Selecionar": 0, "Baixa": 1, "Média": 5, "Alta": 3}
@@ -287,7 +294,7 @@ if df is not None:
 
         observacoes = st.text_area("📝 Observações da Vistoria:", height=80)
 
-        # CÁLCULO SCORE PONTO (MÁX 70)
+        # CÁLCULO SCORE PONTO
         score_ponto_calc = peso_fluxo_pessoas[f_pess] + peso_padrao[f_veic] + peso_renda[c_rend] + peso_padrao[c_popu]
         score_ponto_calc += peso_concorrencia[conc_redes] + peso_concorrencia[conc_indep] + peso_canibalizacao[conc_canib]
         score_ponto_calc += (5 if polo_super else 0) + (4 if polo_pada else 0) + (3 if polo_hosp else 0)
@@ -309,12 +316,8 @@ if df is not None:
         if char_solar == "Boa": score_ponto_calc += 2
 
         score_ponto = max(0, min(70, score_ponto_calc))
-
-        # --- CORREÇÃO DA FÓRMULA FINAL ---
-        # A aderência total é a SOMA direta dos scores (Máx 30 + Máx 70 = 100)
         porcentagem_final = score_mercado + score_ponto
 
-        # --- LÓGICA DE CLASSIFICAÇÃO ATUALIZADA (CONFORME TABELA) ---
         if porcentagem_final > 90:
             label_class = "Premium"
             txt_recomenda = "Ponto de altíssima prioridade; solicitar estudo."
@@ -333,14 +336,16 @@ if df is not None:
             cor_destaque = "#ff4b4b"
 
         if st.button("📊 AVALIAR"):
-            # Cálculo de aproveitamento individual para exibição informativa
-            perc_mercado_display = (score_mercado / 30) * 100
-            perc_ponto_display = (score_ponto / 70) * 100
+            p_merc_val = (score_mercado / 30) * 100
+            p_ponto_val = (score_ponto / 70) * 100
+            
+            p_merc_txt = f"{p_merc_val:.2f}%"
+            p_ponto_txt = f"{p_ponto_val:.2f}%"
 
             st.markdown(f"""
                 <div class="score-container">
-                    <div class="sub-score-text">Mercado da Cidade: <b>{perc_mercado_display:.2f}%</b></div>
-                    <div class="sub-score-text">Dados do Ponto: <b>{perc_ponto_display:.2f}%</b></div>
+                    <div class="sub-score-text">Mercado da Cidade: <b>{p_merc_txt}</b></div>
+                    <div class="sub-score-text">Dados do Ponto: <b>{p_ponto_txt}</b></div>
                     <hr style="border: 0.5px solid #4a5568; margin: 20px 0;">
                     <div class="classificacao-text" style="color: {cor_destaque};">{label_class}</div>
                     <div class="recomendacao-text">{txt_recomenda}</div>
@@ -353,7 +358,8 @@ if df is not None:
             pol = {"Super": polo_super, "Padaria": polo_pada, "Hospital": polo_hosp, "Bancos": polo_banc, "Pet": polo_pet, "Fem": polo_fem}
             caract = {"Local": char_local, "Posicao": char_posicao, "Visib": char_visib, "Acess": char_acess, "Vagas": char_vagas, "Sol": char_solar}
 
-            pdf_bytes = exportar_pdf(dados, endereco, lat_lon_str, observacoes, aval, conc, pol, caract, foto, f"{porcentagem_final:.2f}% ({label_class})", score_mercado, score_ponto)
+            # ENVIA OS TEXTOS PARA O PDF
+            pdf_bytes = exportar_pdf(dados, endereco, lat_lon_str, observacoes, aval, conc, pol, caract, foto, f"{porcentagem_final:.2f}% ({label_class})", score_mercado, score_ponto, p_merc_txt, p_ponto_txt)
             st.download_button(label="🚀 Baixar Relatório PDF", data=pdf_bytes, file_name=f"Relatorio_{cidade_selecionada}.pdf", mime="application/pdf")
     else:
         st.info("Por favor, selecione um município.")
