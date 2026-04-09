@@ -11,7 +11,6 @@ import os
 st.set_page_config(page_title="Radar de Expansão", layout="centered")
 
 # --- SISTEMA DE LOGIN ---
-# CADASTRE AQUI OS USUÁRIOS PERMITIDOS
 USUARIOS_AUTORIZADOS = {
     "Pablo": "55997260245",
     "Lucas": "5499206706",
@@ -28,10 +27,10 @@ def tela_login():
     st.markdown("""
         <style>
         .login-box {
-            background-color: #1e2130;
-            padding: 2rem;
+            padding: 2.5rem;
             border-radius: 10px;
             border: 1px solid #4a5568;
+            background-color: rgba(157, 165, 177, 0.1);
             margin-top: 50px;
         }
         </style>
@@ -58,51 +57,38 @@ def tela_login():
 if not st.session_state.logado:
     tela_login()
 else:
-    # BOTÃO DE LOGOUT NA BARRA LATERAL
+    # Barra Lateral
     st.sidebar.write(f"👤 Usuário: **{st.session_state.usuario_nome}**")
     if st.sidebar.button("Sair"):
         st.session_state.logado = False
         st.rerun()
 
-    # --- INÍCIO DO SEU CÓDIGO ORIGINAL ---
-    
+    # --- ESTILIZAÇÃO ADAPTÁVEL (LIGHT/DARK MODE) ---
     st.markdown("""
         <style>
-        .main { background-color: #0e1117; }
-        [data-testid="stMetricValue"] { font-size: 1.6rem !important; color: #ffffff !important; }
-        [data-testid="stMetricLabel"] { font-size: 0.9rem !important; color: #9da5b1 !important; }
+        /* Ajuste das Métricas para herdar a cor do tema (resolve o problema do modo branco) */
+        [data-testid="stMetricValue"] { 
+            font-size: 1.6rem !important; 
+        }
+        [data-testid="stMetricLabel"] { 
+            font-size: 0.9rem !important; 
+        }
+        
         .stSelectSlider label { font-size: 0.85rem !important; font-weight: bold; }
+        
+        /* Container de Score adaptável */
         .score-container {
-            background-color: #1e2130;
+            background-color: rgba(157, 165, 177, 0.1);
             padding: 1.5rem;
             border-radius: 10px;
             border: 1px solid #4a5568;
             text-align: center;
             margin-bottom: 1rem;
         }
-        .sub-score-text {
-            font-size: 1.1rem;
-            color: #9da5b1;
-            margin: 5px 0;
-        }
-        .total-score-text {
-            font-size: 3.5rem;
-            font-weight: bold;
-            margin-top: -10px;
-        }
-        .classificacao-text {
-            font-size: 1.4rem;
-            font-weight: bold;
-            margin-top: 10px;
-            text-transform: uppercase;
-        }
-        .recomendacao-text {
-            font-size: 0.95rem;
-            color: #bdc3c7;
-            margin-bottom: 15px;
-            font-style: italic;
-            line-height: 1.2;
-        }
+        .sub-score-text { font-size: 1.1rem; margin: 5px 0; }
+        .total-score-text { font-size: 3.5rem; font-weight: bold; margin-top: -10px; }
+        .classificacao-text { font-size: 1.4rem; font-weight: bold; margin-top: 10px; text-transform: uppercase; }
+        .recomendacao-text { font-size: 0.95rem; margin-bottom: 15px; font-style: italic; line-height: 1.2; }
         </style>
         """, unsafe_allow_html=True)
 
@@ -118,7 +104,6 @@ else:
         pdf.add_page()
         pdf.set_margins(10, 10, 10)
         pdf.set_auto_page_break(False)
-
         pdf.set_font("Arial", "B", 12)
         pdf.cell(0, 6, txt="Relatorio de Expansao - Analise de Ponto", ln=True, align='C')
         
@@ -134,7 +119,6 @@ else:
         
         pdf.set_text_color(0, 0, 0)
         pdf.ln(2)
-
         pdf.set_font("Arial", "B", 9)
         pdf.cell(0, 5, txt="1. DADOS DO MERCADO", ln=True)
         pdf.set_font("Arial", "", 8)
@@ -195,12 +179,10 @@ else:
                 w_orig, h_orig = img.size
                 aspect_ratio = w_orig / h_orig
                 y_atual = pdf.get_y()
-                altura_disponivel = 297 - y_atual - 15
-                largura_disponivel = 190
-                nova_w = largura_disponivel
+                nova_w = 190
                 nova_h = nova_w / aspect_ratio
-                if nova_h > altura_disponivel:
-                    nova_h = altura_disponivel
+                if nova_h > (297 - y_atual - 15):
+                    nova_h = (297 - y_atual - 15)
                     nova_w = nova_h * aspect_ratio
                 x_cent = (210 - nova_w) / 2
                 img_path = "temp_pdf_foto.jpg"
@@ -208,7 +190,6 @@ else:
                 pdf.image(img_path, x=x_cent, y=y_atual + 5, w=nova_w, h=nova_h)
                 os.remove(img_path)
             except: pass
-
         return pdf.output(dest='S').encode('latin-1', errors='replace')
 
     @st.cache_data
@@ -265,7 +246,6 @@ else:
             score_mercado = 0
             if lojas_cabem_valor > 0: score_mercado += 15
             if share_valor_original <= 0.30: score_mercado += 15
-
             if estado_cidade == "RS":
                 if demanda_cidade < 1200000: score_mercado -= 15
                 if populacao_cidade < 6000: score_mercado -= 15
@@ -282,7 +262,6 @@ else:
                 if demanda_cidade > 2000000: bonus += 5
                 if bonus == 10: bonus = 15
                 score_mercado += bonus
-
             score_mercado = max(0, min(30, score_mercado))
 
             st.markdown("---")
@@ -294,7 +273,6 @@ else:
             
             st.markdown("---")
             st.subheader("3. Dados do Ponto")
-            
             opcoes_padrao = ["Selecionar", "Baixo", "Médio", "Alto"]
             opcoes_renda = ["Selecionar", "Baixa", "Média", "Alta"]
             opcoes_sim_nao = ["Selecionar", "Sim", "Não"]
@@ -342,7 +320,6 @@ else:
 
             observacoes = st.text_area("📝 Observações da Vistoria:", height=80)
 
-            # CÁLCULO SCORE PONTO
             score_ponto_calc = peso_fluxo_pessoas[f_pess] + peso_padrao[f_veic] + peso_renda[c_rend] + peso_padrao[c_popu]
             score_ponto_calc += peso_concorrencia[conc_redes] + peso_concorrencia[conc_indep] + peso_canibalizacao[conc_canib]
             score_ponto_calc += (5 if polo_super else 0) + (4 if polo_pada else 0) + (3 if polo_hosp else 0)
@@ -367,28 +344,17 @@ else:
             porcentagem_final = score_mercado + score_ponto
 
             if porcentagem_final > 90:
-                label_class = "Premium"
-                txt_recomenda = "Ponto de altíssima prioridade; solicitar estudo."
-                cor_destaque = "#00ffcc"
+                label_class, txt_recomenda, cor_destaque = "Premium", "Ponto de altíssima prioridade; solicitar estudo.", "#00ffcc"
             elif porcentagem_final >= 70:
-                label_class = "Favorável"
-                txt_recomenda = "Ponto sólido; ajustes menores em negociação de aluguel."
-                cor_destaque = "#f1c40f"
+                label_class, txt_recomenda, cor_destaque = "Favorável", "Ponto sólido; ajustes menores em negociação de aluguel.", "#f1c40f"
             elif porcentagem_final >= 60:
-                label_class = "Médio Risco"
-                txt_recomenda = "Requer análise interna; olhar atento às características e dados de geomarketing."
-                cor_destaque = "#e67e22"
+                label_class, txt_recomenda, cor_destaque = "Médio Risco", "Requer análise interna; olhar atento às características.", "#e67e22"
             else:
-                label_class = "Inviável"
-                txt_recomenda = "Reprovado tecnicamente; alto risco de ROI negativo."
-                cor_destaque = "#ff4b4b"
+                label_class, txt_recomenda, cor_destaque = "Inviável", "Reprovado tecnicamente; alto risco de ROI negativo.", "#ff4b4b"
 
             if st.button("📊 AVALIAR"):
-                p_merc_val = (score_mercado / 30) * 100
-                p_ponto_val = (score_ponto / 70) * 100
-                
-                p_merc_txt = f"{p_merc_val:.2f}%"
-                p_ponto_txt = f"{p_ponto_val:.2f}%"
+                p_merc_txt = f"{(score_mercado / 30) * 100:.2f}%"
+                p_ponto_txt = f"{(score_ponto / 70) * 100:.2f}%"
 
                 st.markdown(f"""
                     <div class="score-container">
