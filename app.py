@@ -35,10 +35,6 @@ st.markdown("""
         color: #00ffcc;
         font-weight: bold;
     }
-    .warning-text {
-        color: #ff4b4b;
-        font-weight: bold;
-    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -61,7 +57,7 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia,
     pdf.set_fill_color(30, 33, 48)
     pdf.set_text_color(255, 255, 255)
     pdf.set_font("Arial", "B", 10)
-    pdf.cell(0, 8, txt=f"ADERENCIA TOTAL: {perc_final} (Mercado: {score_mercado}/30 | Ponto: {score_ponto}/70)", ln=True, align='C', fill=True)
+    pdf.cell(0, 8, txt=f"ADERENCIA TOTAL: {perc_final}", ln=True, align='C', fill=True)
     pdf.set_text_color(0, 0, 0)
     pdf.ln(2)
 
@@ -292,24 +288,20 @@ if df is not None:
         # Ajuste de limite do score do ponto (0 a 70)
         score_ponto = max(0, min(70, score_ponto_calc))
 
-        # --- CÁLCULO DA PORCENTAGEM PONDERADA (30% Mercado / 70% Ponto) ---
-        # Se mercado for insuficiente (negativo), ele contribui com 0% para a soma final, não subtrai.
+        # --- CÁLCULO DA PORCENTAGEM PONDERADA ---
         aproveitamento_mercado = max(0, score_mercado) / 30
         aproveitamento_ponto = score_ponto / 70
-        
         porcentagem_final = (aproveitamento_mercado * 30) + (aproveitamento_ponto * 70)
 
         if st.button("📊 AVALIAR"):
-            # Lógica para mensagem de aviso ou porcentagem no Mercado
-            if score_mercado < 0:
-                texto_mercado = f"<span class='warning-text'>Mercado e população insuficiente</span> ({score_mercado}/30)"
-            else:
-                texto_mercado = f"<b>{(score_mercado/30*100):.2f}%</b> ({score_mercado}/30)"
+            # Formatação simplificada conforme pedido
+            perc_mercado_str = f"<b>{(aproveitamento_mercado*100):.2f}%</b>"
+            perc_ponto_str = f"<b>{(aproveitamento_ponto*100):.2f}%</b>"
 
             st.markdown(f"""
                 <div class="score-container">
-                    <div class="sub-score-text">Mercado da Cidade (Peso 30%): {texto_mercado}</div>
-                    <div class="sub-score-text">Dados do Ponto (Peso 70%): <b>{(aproveitamento_ponto*100):.2f}%</b> ({score_ponto}/70)</div>
+                    <div class="sub-score-text">Mercado da Cidade: {perc_mercado_str}</div>
+                    <div class="sub-score-text">Dados do Ponto: {perc_ponto_str}</div>
                     <hr style="border: 0.5px solid #4a5568;">
                     <div class="sub-score-text" style="color: #9da5b1; font-size: 0.9rem;">ADERÊNCIA TOTAL AO MODELO</div>
                     <div class="total-score-text">{porcentagem_final:.2f}%</div>
