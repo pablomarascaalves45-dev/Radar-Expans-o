@@ -37,12 +37,13 @@ def formatar_br(valor, casas=2):
     except:
         return str(valor)
 
-# --- FUNÇÃO PARA GERAR PDF (OTIMIZADA PARA 1 PÁGINA) ---
+# --- FUNÇÃO PARA GERAR PDF (FOTO NO FINAL E DINÂMICA) ---
 def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia, polos, caracteristicas, foto_arquivo, score_final):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_margins(10, 10, 10)
     
+    # Cabeçalho
     pdf.set_font("Arial", "B", 14)
     pdf.cell(0, 8, txt="Relatorio de Expansao - Analise de Ponto", ln=True, align='C')
     pdf.set_text_color(0, 51, 102)
@@ -51,6 +52,7 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia,
     pdf.set_text_color(0, 0, 0)
     pdf.ln(2)
 
+    # 1. Mercado
     pdf.set_font("Arial", "B", 10)
     pdf.cell(0, 6, txt="1. Mercado da Cidade", ln=True)
     pdf.set_font("Arial", "", 9)
@@ -61,26 +63,17 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia,
     pdf.cell(0, 5, txt=f"Regiao: {reg_imediata}", ln=True)
     pdf.ln(2)
 
+    # 2. Dados do Ponto
     pdf.set_font("Arial", "B", 10)
     pdf.cell(0, 6, txt="2. Dados do Ponto", ln=True)
     pdf.set_font("Arial", "", 8)
     pdf.multi_cell(0, 4, txt=f"Endereco: {str(endereco).encode('latin-1', 'ignore').decode('latin-1')}")
     pdf.cell(0, 4, txt=f"GPS: {lat_lon}", ln=True)
-    
-    if foto_arquivo:
-        try:
-            img = Image.open(foto_arquivo)
-            if img.mode in ("RGBA", "P"): img = img.convert("RGB")
-            img_path = "temp_pdf_foto.jpg"
-            img.save(img_path)
-            pdf.image(img_path, x=140, y=35, w=55) 
-            if os.path.exists(img_path): os.remove(img_path)
-        except: pass
-    
     pdf.ln(2)
+
+    # 3. Analise de Campo
     pdf.set_font("Arial", "B", 10)
     pdf.cell(0, 6, txt="3. Analise de Campo", ln=True)
-    
     y_start_analise = pdf.get_y()
     
     def print_dict_compact(titulo, dicionario, x_pos, y_pos):
@@ -98,6 +91,7 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia,
     h3 = print_dict_compact("Caracteristicas", caracteristicas, 60, y_start_analise)
     h4 = print_dict_compact("Polos Geradores", polos, 110, y_start_analise)
 
+    # Observações
     final_y = max(h2, h3, h4) + 5
     pdf.set_xy(10, final_y)
     pdf.set_font("Arial", "B", 9)
@@ -105,6 +99,30 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia,
     pdf.set_font("Arial", "", 8)
     txt_obs = str(obs).encode('latin-1', 'ignore').decode('latin-1')
     pdf.multi_cell(0, 4, txt=txt_obs)
+    
+    # Espaço Restante para a Foto
+    pdf.ln(2)
+    current_y = pdf.get_y()
+    page_height = 297 # A4 height in mm
+    bottom_margin = 15
+    available_height = page_height - current_y - bottom_margin
+
+    if foto_arquivo and available_height > 20: # Só imprime se sobrar espaço razoável
+        try:
+            img = Image.open(foto_arquivo)
+            if img.mode in ("RGBA", "P"): img = img.convert("RGB")
+            
+            # Salva temporariamente
+            img_path = "temp_pdf_foto.jpg"
+            img.save(img_path)
+            
+            # Largura máxima de 170mm para manter centralizada
+            # A altura é ajustada proporcionalmente ou limitada ao espaço disponível
+            img_w = 170
+            pdf.image(img_path, x=20, y=current_y, w=img_w)
+            
+            if os.path.exists(img_path): os.remove(img_path)
+        except: pass
     
     return pdf.output(dest='S').encode('latin-1', errors='replace')
 
@@ -189,9 +207,7 @@ if df is not None:
     with col_cp3: char_visib = st.selectbox("Visibilidade", options=["Boa", "Ruim"])
     
     col_cp4, col_cp5, col_cp6 = st.columns(3)
-    with col_cp4: 
-        # AJUSTE SOLICITADO: Somente Boa ou Ruim
-        char_acess = st.selectbox("Acessibilidade", options=["Boa", "Ruim"])
+    with col_cp4: char_acess = st.selectbox("Acessibilidade", options=["Boa", "Ruim"])
     with col_cp5: char_vagas = st.selectbox("Vagas", options=["Sim", "Não"])
     with col_cp6: char_solar = st.selectbox("Posição Solar", options=["Boa", "Ruim"])
 
@@ -214,15 +230,10 @@ if df is not None:
     # --- CÁLCULO SCORE PONTO ---
     score_ponto = peso_padrao[f_pess] + peso_padrao[f_veic] + peso_renda[c_rend] + peso_padrao[c_popu]
     score_ponto += peso_concorrencia[conc_redes] + peso_concorrencia[conc_indep] + peso_canibalizacao[conc_canib]
-    
-    # Pontuação por Polos
     score_ponto += (7 if polo_super else 0) + (6 if polo_pada else 0) + (5 if polo_hosp else 0)
     score_ponto += (5 if polo_banc else 0) + (2 if polo_pet else 0) + (5 if polo_fem else 0)
-    
-    # Pontuação por Características (Acessibilidade agora com peso fixo de 5)
     score_ponto += (5 if char_acess == "Boa" else 0)
     score_ponto += (5 if char_vagas == "Sim" else 0)
-    
     score_final = score_mercado + score_ponto
 
     observacoes = st.text_area("📝 Observações da Vistoria:", height=80)
