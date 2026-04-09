@@ -195,12 +195,13 @@ if df is not None:
     col_cp1, col_cp2, col_cp3 = st.columns(3)
     with col_cp1: char_local = st.selectbox("Local", options=["Centro", "Bairro", "Interligação", "Intrabairro"])
     with col_cp2: char_posicao = st.selectbox("Posição", options=["Esquina", "Rótula", "Meio de quadra"])
+    # PESO AJUSTADO: Visibilidade (+5 ou -5)
     with col_cp3: char_visib = st.selectbox("Visibilidade", options=["Boa", "Ruim"])
     
     col_cp4, col_cp5, col_cp6 = st.columns(3)
-    # AJUSTE: Acessibilidade Boa/Ruim
     with col_cp4: char_acess = st.selectbox("Acessibilidade", options=["Boa", "Ruim"])
     with col_cp5: char_vagas = st.selectbox("Vagas", options=["Sim", "Não"])
+    # PESO AJUSTADO: Posição Solar (+5 ou 0)
     with col_cp6: char_solar = st.selectbox("Posição Solar", options=["Boa", "Ruim"])
 
     st.markdown("<h3 style='text-align: center;'>Concorrência</h3>", unsafe_allow_html=True)
@@ -225,11 +226,12 @@ if df is not None:
     score_ponto += (7 if polo_super else 0) + (6 if polo_pada else 0) + (5 if polo_hosp else 0)
     score_ponto += (5 if polo_banc else 0) + (2 if polo_pet else 0) + (5 if polo_fem else 0)
     
-    # AJUSTE: Acessibilidade Boa (+5) ou Ruim (-10)
     score_ponto += (5 if char_acess == "Boa" else -10)
-    
-    # AJUSTE: Vagas Sim (+5) ou Não (-10)
     score_ponto += (5 if char_vagas == "Sim" else -10)
+    
+    # NOVOS PESOS ADICIONADOS AQUI:
+    score_ponto += (5 if char_visib == "Boa" else -5)
+    score_ponto += (5 if char_solar == "Boa" else 0)
     
     score_final = score_mercado + score_ponto
 
