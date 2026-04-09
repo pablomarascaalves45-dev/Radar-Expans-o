@@ -129,7 +129,7 @@ if df is not None:
     col_cidade, col_uf = st.columns([4, 1])
     with col_cidade:
         cidade_selecionada = st.selectbox("Selecione o município:", options=cidades)
-        dados = df[df['Município'] == cidade_selecionada].iloc[0]
+        dados = df[df['Município'] == ciudad_selecionada].iloc[0]
     with col_uf:
         estado_cidade = dados.get('UF', '')
         st.text_input("Estado:", value=estado_cidade, disabled=True)
@@ -138,6 +138,7 @@ if df is not None:
     lojas_atuais = dados.get('N° FSJ', 0)
     lojas_cabem_valor = dados.get('Lojas Cabem', 0)
     share_valor_original = dados.get('%Share', 0)
+    demanda_cidade = dados.get('Demanda', 0)
 
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -145,12 +146,27 @@ if df is not None:
         st.metric("📊 Share", f"{formatar_br(share_valor_original * 100, 2)}%")
     with col2:
         st.metric("🏠 Lojas Atuais", formatar_br(lojas_atuais, 0))
-        st.metric("📈 Demanda", formatar_br(dados.get('Demanda', 0), 2))
+        st.metric("📈 Demanda", formatar_br(demanda_cidade, 2))
     with col3:
         st.metric("💰 Renda Média", formatar_br(dados.get('Renda Média Domiciliar (SM)', 0), 2))
         st.metric("🏗️ Lojas Cabem", formatar_br(lojas_cabem_valor, 0))
 
+    # --- LÓGICA DE SCORE DE MERCADO COM PENALIZAÇÕES ---
     score_mercado = (15 if lojas_cabem_valor > 0 else 0) + (15 if share_valor_original <= 0.30 else 0)
+
+    # Penalizações SC e PR
+    if estado_cidade in ["SC", "PR"]:
+        if demanda_cidade < 2000000:
+            score_mercado -= 15
+        if populacao_cidade < 15000:
+            score_mercado -= 15
+
+    # Penalizações RS
+    elif estado_cidade == "RS":
+        if demanda_cidade < 1200000:
+            score_mercado -= 20
+        if populacao_cidade < 6000:
+            score_mercado -= 20
 
     st.markdown("---")
     st.subheader("2. Mídia e Localização")
@@ -185,7 +201,7 @@ if df is not None:
     with col_cp5: char_vagas = st.selectbox("Vagas", options=["Sim", "Não"])
     with col_cp6: char_solar = st.selectbox("Posição Solar", options=["Boa", "Ruim"])
 
-    # --- NOVA LÓGICA DE PESO POR POSIÇÃO (POR ESTADO) ---
+    # --- LÓGICA DE PESO POR POSIÇÃO (POR ESTADO) ---
     score_posicao = 0
     if estado_cidade == "RS":
         pesos_pos = {"Esquina": 10, "Meio de quadra": 5, "Rótula": 7}
@@ -202,11 +218,10 @@ if df is not None:
         pesos_pos = {"Esquina": 10, "Meio de quadra": -10, "Rótula": 7}
         score_posicao = pesos_pos.get(char_posicao, 0)
     else:
-        # Peso padrão para outros estados não especificados
         pesos_pos = {"Esquina": 5, "Meio de quadra": 0, "Rótula": 2}
         score_posicao = pesos_pos.get(char_posicao, 0)
 
-    # Lógica de Localização (Original do script)
+    # Lógica de Localização
     score_local = 0
     if populacao_cidade <= 100000:
         if lojas_atuais == 0:
@@ -242,7 +257,6 @@ if df is not None:
     score_ponto += (5 if char_acess == "Boa" else -10) + (5 if char_vagas == "Sim" else -10)
     score_ponto += (5 if char_visib == "Boa" else -5) + (5 if char_solar == "Boa" else 0)
     
-    # Soma dos pesos geográficos e de localização
     score_ponto += score_local
     score_ponto += score_posicao
     
