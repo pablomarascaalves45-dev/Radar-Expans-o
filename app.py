@@ -45,39 +45,87 @@ def formatar_br(valor, casas=2):
         return f"{valor:,.{casas}f}".replace(",", "X").replace(".", ",").replace("X", ".")
     except: return str(valor)
 
-def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia, polos, caracteristicas, foto_arquivo, score_final):
+def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia, polos, caracteristicas, foto_arquivo, score_final, score_mercado, score_ponto):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_margins(10, 10, 10)
-    pdf.set_font("Arial", "B", 14)
-    pdf.cell(0, 8, txt="Relatorio de Expansao - Analise de Ponto", ln=True, align='C')
-    pdf.set_text_color(0, 51, 102)
+    pdf.set_auto_page_break(False) # Evita quebra automática para manter em 1 página
+
+    # Cabeçalho Compacto
     pdf.set_font("Arial", "B", 12)
-    pdf.cell(0, 8, txt=f"SCORE FINAL: {score_final} PONTOS", ln=True, align='C')
+    pdf.cell(0, 6, txt="Relatorio de Expansao - Analise de Ponto", ln=True, align='C')
+    
+    # Faixa de Score
+    pdf.set_fill_color(30, 33, 48)
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font("Arial", "B", 10)
+    pdf.cell(0, 8, txt=f"SCORE TOTAL: {score_final} PTS (Mercado: {score_mercado}/30 | Ponto: {score_ponto}/70)", ln=True, align='C', fill=True)
     pdf.set_text_color(0, 0, 0)
     pdf.ln(2)
+
+    # 1. Mercado e Localização (Lado a Lado)
+    pdf.set_font("Arial", "B", 9)
+    pdf.cell(95, 5, txt="1. DADOS DO MERCADO", ln=0)
+    pdf.cell(95, 5, txt="2. LOCALIZACAO", ln=1)
     
-    pdf.set_font("Arial", "B", 10)
-    pdf.cell(0, 6, txt="1. Mercado da Cidade", ln=True)
-    pdf.set_font("Arial", "", 9)
-    municipio = str(dados_cidade.get('Município', 'N/A')).encode('latin-1', 'ignore').decode('latin-1')
-    uf = str(dados_cidade.get('UF', 'N/A'))
-    pdf.cell(0, 5, txt=f"Municipio: {municipio} - {uf} | Populacao: {formatar_br(dados_cidade.get('População', 0), 0)}", ln=True)
-    pdf.ln(2)
-    
-    pdf.set_font("Arial", "B", 10)
-    pdf.cell(0, 6, txt="2. Dados do Ponto", ln=True)
     pdf.set_font("Arial", "", 8)
-    pdf.multi_cell(0, 4, txt=f"Endereco: {str(endereco).encode('latin-1', 'ignore').decode('latin-1')}")
-    pdf.cell(0, 4, txt=f"GPS: {lat_lon}", ln=True)
+    municipio = str(dados_cidade.get('Município', 'N/A')).encode('latin-1', 'ignore').decode('latin-1')
+    pdf.cell(95, 4, txt=f"Cidade: {municipio} - {dados_cidade.get('UF', '')}", ln=0)
+    pdf.multi_cell(95, 4, txt=f"End: {str(endereco).encode('latin-1', 'ignore').decode('latin-1')[:100]}")
     
+    pdf.cell(95, 4, txt=f"Pop: {formatar_br(dados_cidade.get('Populacao', 0), 0)} | Demanda: {formatar_br(dados_cidade.get('Demanda', 0))}", ln=0)
+    pdf.cell(95, 4, txt=f"GPS: {lat_lon}", ln=1)
+    pdf.ln(2)
+
+    # 3. Analise Tecnica (Duas colunas)
+    pdf.set_font("Arial", "B", 9)
+    pdf.cell(0, 5, txt="3. ANALISE TECNICA DO PONTO", ln=True)
+    pdf.set_font("Arial", "", 8)
+    
+    # Coluna A: Fluxos e Concorrência | Coluna B: Características e Polos
+    y_antes = pdf.get_y()
+    
+    # Coluna Esquerda
+    pdf.set_font("Arial", "B", 7)
+    pdf.cell(95, 4, txt="FLUXOS E CONCORRENCIA", ln=True)
+    pdf.set_font("Arial", "", 7)
+    for k, v in avaliacoes.items():
+        pdf.cell(95, 3.5, txt=f"- {k}: {v}", ln=True)
+    for k, v in concorrencia.items():
+        pdf.cell(95, 3.5, txt=f"- {k}: {v}", ln=True)
+    
+    # Coluna Direita (Retornar o Y)
+    pdf.set_y(y_antes)
+    pdf.set_x(105)
+    pdf.set_font("Arial", "B", 7)
+    pdf.cell(95, 4, txt="CARACTERISTICAS E POLOS", ln=True)
+    pdf.set_font("Arial", "", 7)
+    for k, v in caracteristicas.items():
+        pdf.set_x(105)
+        pdf.cell(95, 3.5, txt=f"- {k}: {v}", ln=True)
+    
+    polos_str = ", ".join([k for k, v in polos.items() if v == "Sim"])
+    pdf.set_x(105)
+    pdf.multi_cell(95, 3.5, txt=f"- Polos: {polos_str if polos_str else 'Nenhum'}")
+    
+    # Observações
+    pdf.ln(2)
+    pdf.set_font("Arial", "B", 8)
+    pdf.cell(0, 4, txt="OBSERVACOES DA VISTORIA:", ln=True)
+    pdf.set_font("Arial", "", 7)
+    pdf.multi_cell(0, 3.5, txt=str(obs).encode('latin-1', 'ignore').decode('latin-1'))
+
+    # Foto (Redimensionada para caber no fim)
     if foto_arquivo:
         try:
             img = Image.open(foto_arquivo)
             if img.mode in ("RGBA", "P"): img = img.convert("RGB")
             img_path = "temp_pdf_foto.jpg"
             img.save(img_path)
-            pdf.image(img_path, x=20, y=pdf.get_y()+5, w=170)
+            # Calcula espaço restante
+            espaco_restante = 280 - pdf.get_y() - 10
+            largura_img = 100 if espaco_restante > 60 else 60
+            pdf.image(img_path, x=55, y=pdf.get_y()+2, w=largura_img)
             os.remove(img_path)
         except: pass
 
@@ -135,22 +183,18 @@ if df is not None:
             st.metric("💰 Renda Média", formatar_br(dados.get('Renda Média Domiciliar (SM)', 0), 2))
             st.metric("🏗️ Lojas Cabem", formatar_br(lojas_cabem_valor, 0))
 
-        # --- LÓGICA DE SCORE DE MERCADO (EQUALIZADO PARA MÁX 30 / MÍN -30) ---
+        # --- SCORE MERCADO ---
         score_mercado = 0
-        max_mercado = 30 
-        
         if lojas_cabem_valor > 0:
             score_mercado += 15
             if share_valor_original <= 0.30:
                 score_mercado += 15
-
         if estado_cidade in ["SC", "PR"]:
             if demanda_cidade < 2000000: score_mercado -= 15 
             if populacao_cidade < 15000: score_mercado -= 15 
         elif estado_cidade == "RS":
             if demanda_cidade < 1200000: score_mercado -= 15
             if populacao_cidade < 6000: score_mercado -= 15
-        
         score_mercado = max(-30, min(30, score_mercado))
 
         st.markdown("---")
@@ -163,17 +207,13 @@ if df is not None:
         st.markdown("---")
         st.subheader("3. Dados do Ponto")
         
-        # --- DEFINIÇÃO DE PESOS EQUALIZADOS PARA TOTALIZAR 70 ---
         opcoes_padrao = ["Selecionar", "Baixo", "Médio", "Alto"]
         opcoes_renda = ["Selecionar", "Baixa", "Média", "Alta"]
         opcoes_sim_nao = ["Selecionar", "Sim", "Não"]
         opcoes_boa_ruim = ["Selecionar", "Boa", "Ruim"]
 
-        # Pesos Slider (Max 4 * 5 = 20)
         peso_padrao = {"Selecionar": 0, "Baixo": 1, "Médio": 3, "Alto": 5}
         peso_renda = {"Selecionar": 0, "Baixa": 1, "Média": 5, "Alta": 3}
-        
-        # Concorrência (Max 15)
         peso_concorrencia = {"Selecionar": 0, "Baixo": 5, "Médio": 2, "Alto": -5} 
         peso_canibalizacao = {"Selecionar": 0, "Baixo": 5, "Médio": -3, "Alto": -10}
         
@@ -202,7 +242,6 @@ if df is not None:
         with col_c3: conc_canib = st.select_slider("Canibalização", options=opcoes_padrao, value="Selecionar")
 
         st.markdown("<h3 style='text-align: center;'>Polos geradores de tráfego</h3>", unsafe_allow_html=True)
-        # Max 20 pontos em polos
         p1, p2, p3 = st.columns(3)
         with p1: polo_super = st.checkbox("Supermercado")
         with p2: polo_pada = st.checkbox("Padaria")
@@ -214,53 +253,40 @@ if df is not None:
 
         observacoes = st.text_area("📝 Observações da Vistoria:", height=80)
 
-        # --- LÓGICA DE PONTUAÇÃO REAL (LIMITADA A 70) ---
-        max_ponto = 70 
-        
-        score_ponto_calc = 0
-        score_ponto_calc += peso_padrao[f_pess] + peso_padrao[f_veic] + peso_renda[c_rend] + peso_padrao[c_popu]
+        # --- CÁLCULO SCORE PONTO ---
+        score_ponto_calc = peso_padrao[f_pess] + peso_padrao[f_veic] + peso_renda[c_rend] + peso_padrao[c_popu]
         score_ponto_calc += peso_concorrencia[conc_redes] + peso_concorrencia[conc_indep] + peso_canibalizacao[conc_canib]
-        
-        # Polos (Total max 20)
         score_ponto_calc += (5 if polo_super else 0) + (4 if polo_pada else 0) + (3 if polo_hosp else 0)
         score_ponto_calc += (3 if polo_banc else 0) + (2 if polo_pet else 0) + (3 if polo_fem else 0)
         
-        # Características (Total max 15)
-        if char_acess != "Selecionar": score_ponto_calc += (3 if char_acess == "Boa" else -5)
-        if char_vagas != "Selecionar": score_ponto_calc += (3 if char_vagas == "Sim" else -5)
-        if char_visib != "Selecionar": score_ponto_calc += (3 if char_visib == "Boa" else -3)
-        if char_solar != "Selecionar": score_ponto_calc += (2 if char_solar == "Boa" else 0)
-        
-        # Local e Posição (Max 15)
-        score_pos = 0
-        if char_posicao == "Esquina": score_pos = 4
-        elif char_posicao == "Rótula": score_pos = 3
-        elif char_posicao == "Meio de quadra": score_pos = 1
-        
-        score_loc = 0
-        if char_local == "Centro": score_loc = 4
-        elif char_local in ["Bairro", "Interligação"]: score_loc = 3
-        
-        score_ponto_calc += score_pos + score_loc
-        
-        # Trava de segurança para o Ponto
-        score_ponto = min(max_ponto, score_ponto_calc)
+        if char_acess == "Boa": score_ponto_calc += 3
+        elif char_acess == "Ruim": score_ponto_calc -= 5
+        if char_vagas == "Sim": score_ponto_calc += 3
+        elif char_vagas == "Não": score_ponto_calc -= 5
+        if char_visib == "Boa": score_ponto_calc += 3
+        elif char_visib == "Ruim": score_ponto_calc -= 3
+        if char_solar == "Boa": score_ponto_calc += 2
+
+        score_ponto = min(70, score_ponto_calc)
         score_final = score_mercado + score_ponto
 
-        # --- BOTÃO AVALIAR ---
         if st.button("📊 AVALIAR"):
             st.markdown(f"""
                 <div class="score-container">
-                    <div class="sub-score-text">Mercado da Cidade: <b>{score_mercado}/{max_mercado}</b></div>
-                    <div class="sub-score-text">Dados do Ponto: <b>{score_ponto}/{max_ponto}</b></div>
+                    <div class="sub-score-text">Mercado da Cidade: <b>{score_mercado}/30</b></div>
+                    <div class="sub-score-text">Dados do Ponto: <b>{score_ponto}/70</b></div>
                     <hr style="border: 0.5px solid #4a5568;">
-                    <div style="color:#9da5b1; font-size: 0.9rem;">SCORE TOTAL</div>
                     <div class="total-score-text">{score_final} pts</div>
                 </div>
             """, unsafe_allow_html=True)
 
-            pdf_bytes = exportar_pdf(dados, endereco, lat_lon_str, observacoes, {}, {}, {}, {}, foto, score_final)
-            st.download_button(label="🚀 Baixar Relatório PDF", data=pdf_bytes, file_name=f"Relatorio_{cidade_selecionada}.pdf", mime="application/pdf")
+            # Preparação de dados para o PDF
+            aval = {"Fluxo Pessoas": f_pess, "Fluxo Veiculos": f_veic, "Renda": c_rend, "Concentracao": c_popu}
+            conc = {"Redes": conc_redes, "Independentes": conc_indep, "Canibalizacao": conc_canib}
+            pol = {"Supermercado": "Sim" if polo_super else "Nao", "Padaria": "Sim" if polo_pada else "Nao", "Hospital": "Sim" if polo_hosp else "Nao", "Bancos": "Sim" if polo_banc else "Nao", "Pet": "Sim" if polo_pet else "Nao", "Feminino": "Sim" if polo_fem else "Nao"}
+            caract = {"Local": char_local, "Posicao": char_posicao, "Visibilidade": char_visib, "Acessibilidade": char_acess, "Vagas": char_vagas, "Sol": char_solar}
 
+            pdf_bytes = exportar_pdf(dados, endereco, lat_lon_str, observacoes, aval, conc, pol, caract, foto, score_final, score_mercado, score_ponto)
+            st.download_button(label="🚀 Baixar Relatório PDF", data=pdf_bytes, file_name=f"Relatorio_{cidade_selecionada}.pdf", mime="application/pdf")
     else:
-        st.info("Por favor, selecione um município para iniciar a análise.")
+        st.info("Por favor, selecione um município.")
