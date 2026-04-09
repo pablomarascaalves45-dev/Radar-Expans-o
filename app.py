@@ -127,156 +127,138 @@ if df is not None:
     st.subheader("1. Mercado da Cidade")
     cidades = sorted(df['Município'].dropna().unique())
     col_cidade, col_uf = st.columns([4, 1])
+    
     with col_cidade:
-        cidade_selecionada = st.selectbox("Selecione o município:", options=cidades)
+        # Adicionado index=None para iniciar vazio
+        cidade_selecionada = st.selectbox("Selecione o município:", options=cidades, index=None, placeholder="Escolha uma cidade...")
+    
+    # Só processa o restante do script se uma cidade for escolhida
+    if cidade_selecionada:
         dados = df[df['Município'] == cidade_selecionada].iloc[0]
-    with col_uf:
-        estado_cidade = dados.get('UF', '')
-        st.text_input("Estado:", value=estado_cidade, disabled=True)
-    
-    populacao_cidade = dados.get('População', 0)
-    lojas_atuais = dados.get('N° FSJ', 0)
-    lojas_cabem_valor = dados.get('Lojas Cabem', 0)
-    share_valor_original = dados.get('%Share', 0)
-    demanda_cidade = dados.get('Demanda', 0)
-
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("👥 População", formatar_br(populacao_cidade, 0))
-        st.metric("📊 Share", f"{formatar_br(share_valor_original * 100, 2)}%")
-    with col2:
-        st.metric("🏠 Lojas Atuais", formatar_br(lojas_atuais, 0))
-        st.metric("📈 Demanda", formatar_br(demanda_cidade, 2))
-    with col3:
-        st.metric("💰 Renda Média", formatar_br(dados.get('Renda Média Domiciliar (SM)', 0), 2))
-        st.metric("🏗️ Lojas Cabem", formatar_br(lojas_cabem_valor, 0))
-
-    # --- LÓGICA DE SCORE DE MERCADO (FÓRMULAS DE PENALIZAÇÃO) ---
-    score_mercado = (15 if lojas_cabem_valor > 0 else 0) + (15 if share_valor_original <= 0.30 else 0)
-
-    # Regras SC e PR
-    if estado_cidade in ["SC", "PR"]:
-        if demanda_cidade < 2000000:
-            score_mercado -= 15
-        if populacao_cidade < 15000:
-            score_mercado -= 15
-
-    # Regras RS
-    elif estado_cidade == "RS":
-        if demanda_cidade < 1200000:
-            score_mercado -= 20
-        if populacao_cidade < 6000:
-            score_mercado -= 20
-
-    st.markdown("---")
-    st.subheader("2. Mídia e Localização")
-    endereco = st.text_input("📍 Link ou Endereço do Ponto:")
-    loc = get_geolocation()
-    lat_lon_str = f"{loc['coords']['latitude']}, {loc['coords']['longitude']}" if loc else "Não capturado"
-    foto = st.file_uploader("📸 Foto do Imóvel:", type=['jpg', 'jpeg', 'png'])
-    
-    st.markdown("---")
-    st.subheader("3. Dados do Ponto")
-    
-    peso_padrao = {"Baixo": 5, "Médio": 10, "Alto": 15}
-    peso_renda = {"Baixa": 5, "Média": 15, "Alta": 10}
-    peso_concorrencia = {"Baixo": 10, "Médio": 5, "Alto": -5} 
-    peso_canibalizacao = {"Baixo": 10, "Médio": -5, "Alto": -10}
-    
-    col_a, col_b = st.columns(2)
-    col_c, col_d = st.columns(2)
-    with col_a: f_pess = st.select_slider("Fluxo de pessoas", options=["Baixo", "Médio", "Alto"])
-    with col_b: f_veic = st.select_slider("Fluxo de veículos", options=["Baixo", "Médio", "Alto"])
-    with col_c: c_rend = st.select_slider("Classificação de renda", options=["Baixa", "Média", "Alta"])
-    with col_d: c_popu = st.select_slider("Concentração populacional", options=["Baixo", "Médio", "Alto"])
-
-    st.markdown("<h3 style='text-align: center;'>Características do Ponto</h3>", unsafe_allow_html=True)
-    col_cp1, col_cp2, col_cp3 = st.columns(3)
-    with col_cp1: char_local = st.selectbox("Local", options=["Centro", "Bairro", "Interligação", "Intrabairro"])
-    with col_cp2: char_posicao = st.selectbox("Posição", options=["Esquina", "Rótula", "Meio de quadra"])
-    with col_cp3: char_visib = st.selectbox("Visibilidade", options=["Boa", "Ruim"])
-    
-    col_cp4, col_cp5, col_cp6 = st.columns(3)
-    with col_cp4: char_acess = st.selectbox("Acessibilidade", options=["Boa", "Ruim"])
-    with col_cp5: char_vagas = st.selectbox("Vagas", options=["Sim", "Não"])
-    with col_cp6: char_solar = st.selectbox("Posição Solar", options=["Boa", "Ruim"])
-
-    # --- LÓGICA DE PESO POR POSIÇÃO (POR ESTADO) ---
-    score_posicao = 0
-    if estado_cidade == "RS":
-        pesos_pos = {"Esquina": 10, "Meio de quadra": 5, "Rótula": 7}
-        score_posicao = pesos_pos.get(char_posicao, 0)
-    
-    elif estado_cidade == "PR":
-        if populacao_cidade < 50000:
-            pesos_pos = {"Esquina": 10, "Meio de quadra": 5, "Rótula": 7}
-        else:
-            pesos_pos = {"Esquina": 10, "Meio de quadra": -5, "Rótula": 7}
-        score_posicao = pesos_pos.get(char_posicao, 0)
         
-    elif estado_cidade == "SC":
-        pesos_pos = {"Esquina": 10, "Meio de quadra": -10, "Rótula": 7}
-        score_posicao = pesos_pos.get(char_posicao, 0)
-    else:
-        pesos_pos = {"Esquina": 5, "Meio de quadra": 0, "Rótula": 2}
-        score_posicao = pesos_pos.get(char_posicao, 0)
+        with col_uf:
+            estado_cidade = dados.get('UF', '')
+            st.text_input("Estado:", value=estado_cidade, disabled=True)
+        
+        populacao_cidade = dados.get('População', 0)
+        lojas_atuais = dados.get('N° FSJ', 0)
+        lojas_cabem_valor = dados.get('Lojas Cabem', 0)
+        share_valor_original = dados.get('%Share', 0)
+        demanda_cidade = dados.get('Demanda', 0)
 
-    # Lógica de Localização
-    score_local = 0
-    if populacao_cidade <= 100000:
-        if lojas_atuais == 0:
-            pesos_loc = {"Centro": 15, "Bairro": -5, "Interligação": 0, "Intrabairro": -5}
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("👥 População", formatar_br(populacao_cidade, 0))
+            st.metric("📊 Share", f"{formatar_br(share_valor_original * 100, 2)}%")
+        with col2:
+            st.metric("🏠 Lojas Atuais", formatar_br(lojas_atuais, 0))
+            st.metric("📈 Demanda", formatar_br(demanda_cidade, 2))
+        with col3:
+            st.metric("💰 Renda Média", formatar_br(dados.get('Renda Média Domiciliar (SM)', 0), 2))
+            st.metric("🏗️ Lojas Cabem", formatar_br(lojas_cabem_valor, 0))
+
+        # --- LÓGICA DE SCORE DE MERCADO ---
+        score_mercado = (15 if lojas_cabem_valor > 0 else 0) + (15 if share_valor_original <= 0.30 else 0)
+
+        if estado_cidade in ["SC", "PR"]:
+            if demanda_cidade < 2000000: score_mercado -= 15
+            if populacao_cidade < 15000: score_mercado -= 15
+        elif estado_cidade == "RS":
+            if demanda_cidade < 1200000: score_mercado -= 20
+            if populacao_cidade < 6000: score_mercado -= 20
+
+        st.markdown("---")
+        st.subheader("2. Mídia e Localização")
+        endereco = st.text_input("📍 Link ou Endereço do Ponto:")
+        loc = get_geolocation()
+        lat_lon_str = f"{loc['coords']['latitude']}, {loc['coords']['longitude']}" if loc else "Não capturado"
+        foto = st.file_uploader("📸 Foto do Imóvel:", type=['jpg', 'jpeg', 'png'])
+        
+        st.markdown("---")
+        st.subheader("3. Dados do Ponto")
+        
+        peso_padrao = {"Baixo": 5, "Médio": 10, "Alto": 15}
+        peso_renda = {"Baixa": 5, "Média": 15, "Alta": 10}
+        peso_concorrencia = {"Baixo": 10, "Médio": 5, "Alto": -5} 
+        peso_canibalizacao = {"Baixo": 10, "Médio": -5, "Alto": -10}
+        
+        col_a, col_b = st.columns(2)
+        col_c, col_d = st.columns(2)
+        with col_a: f_pess = st.select_slider("Fluxo de pessoas", options=["Baixo", "Médio", "Alto"])
+        with col_b: f_veic = st.select_slider("Fluxo de veículos", options=["Baixo", "Médio", "Alto"])
+        with col_c: c_rend = st.select_slider("Classificação de renda", options=["Baixa", "Média", "Alta"])
+        with col_d: c_popu = st.select_slider("Concentração populacional", options=["Baixo", "Médio", "Alto"])
+
+        st.markdown("<h3 style='text-align: center;'>Características do Ponto</h3>", unsafe_allow_html=True)
+        col_cp1, col_cp2, col_cp3 = st.columns(3)
+        with col_cp1: char_local = st.selectbox("Local", options=["Centro", "Bairro", "Interligação", "Intrabairro"])
+        with col_cp2: char_posicao = st.selectbox("Posição", options=["Esquina", "Rótula", "Meio de quadra"])
+        with col_cp3: char_visib = st.selectbox("Visibilidade", options=["Boa", "Ruim"])
+        
+        col_cp4, col_cp5, col_cp6 = st.columns(3)
+        with col_cp4: char_acess = st.selectbox("Acessibilidade", options=["Boa", "Ruim"])
+        with col_cp5: char_vagas = st.selectbox("Vagas", options=["Sim", "Não"])
+        with col_cp6: char_solar = st.selectbox("Posição Solar", options=["Boa", "Ruim"])
+
+        # --- LÓGICA DE POSIÇÃO ---
+        score_posicao = 0
+        if estado_cidade == "RS":
+            pesos_pos = {"Esquina": 10, "Meio de quadra": 5, "Rótula": 7}
+            score_posicao = pesos_pos.get(char_posicao, 0)
+        elif estado_cidade == "PR":
+            pesos_pos = {"Esquina": 10, "Meio de quadra": 5 if populacao_cidade < 50000 else -5, "Rótula": 7}
+            score_posicao = pesos_pos.get(char_posicao, 0)
+        elif estado_cidade == "SC":
+            pesos_pos = {"Esquina": 10, "Meio de quadra": -10, "Rótula": 7}
+            score_posicao = pesos_pos.get(char_posicao, 0)
         else:
-            pesos_loc = {"Centro": 10, "Bairro": 5, "Interligação": 5, "Intrabairro": 0}
+            pesos_pos = {"Esquina": 5, "Meio de quadra": 0, "Rótula": 2}
+            score_posicao = pesos_pos.get(char_posicao, 0)
+
+        # Lógica de Localização
+        score_local = 0
+        if populacao_cidade <= 100000:
+            pesos_loc = {"Centro": 15 if lojas_atuais == 0 else 10, "Bairro": -5 if lojas_atuais == 0 else 5, "Interligação": 0 if lojas_atuais == 0 else 5, "Intrabairro": -5 if lojas_atuais == 0 else 0}
+        else:
+            pesos_loc = {"Centro": 10, "Bairro": 5, "Interligação": 5, "Intrabairro": 5}
         score_local = pesos_loc.get(char_local, 0)
+
+        st.markdown("<h3 style='text-align: center;'>Concorrência</h3>", unsafe_allow_html=True)
+        col_c1, col_c2, col_c3 = st.columns(3)
+        with col_c1: conc_redes = st.select_slider("Redes", options=["Baixo", "Médio", "Alto"])
+        with col_c2: conc_indep = st.select_slider("Independentes", options=["Baixo", "Médio", "Alto"])
+        with col_c3: conc_canib = st.select_slider("Canibalização", options=["Baixo", "Médio", "Alto"])
+
+        st.markdown("<h3 style='text-align: center;'>Polos geradores de tráfego</h3>", unsafe_allow_html=True)
+        p1, p2, p3 = st.columns(3)
+        with p1: polo_super = st.checkbox("Supermercado")
+        with p2: polo_pada = st.checkbox("Padaria")
+        with p3: polo_hosp = st.checkbox("Hospital/UPA")
+        p4, p5, p6 = st.columns(3)
+        with p4: polo_banc = st.checkbox("Bancos/Lotéricas")
+        with p5: polo_pet = st.checkbox("PetShop")
+        with p6: polo_fem = st.checkbox("Lojas público feminino")
+
+        # Cálculo final
+        score_ponto = peso_padrao[f_pess] + peso_padrao[f_veic] + peso_renda[c_rend] + peso_padrao[c_popu]
+        score_ponto += peso_concorrencia[conc_redes] + peso_concorrencia[conc_indep] + peso_canibalizacao[conc_canib]
+        score_ponto += (7 if polo_super else 0) + (6 if polo_pada else 0) + (5 if polo_hosp else 0)
+        score_ponto += (5 if polo_banc else 0) + (2 if polo_pet else 0) + (5 if polo_fem else 0)
+        score_ponto += (5 if char_acess == "Boa" else -10) + (5 if char_vagas == "Sim" else -10)
+        score_ponto += (5 if char_visib == "Boa" else -5) + (5 if char_solar == "Boa" else 0)
+        score_ponto += score_local + score_posicao
+        
+        score_final = score_mercado + score_ponto
+        observacoes = st.text_area("📝 Observações da Vistoria:", height=80)
+
+        st.markdown(f'<div class="score-container"><h1 style="color:white;">{score_final} pts</h1></div>', unsafe_allow_html=True)
+
+        if st.button("🚀 Gerar Relatório"):
+            avaliacoes = {"Fluxo Pessoas": f_pess, "Fluxo Veículos": f_veic, "Renda": c_rend, "Concentração": c_popu}
+            dados_concorrencia = {"Redes": conc_redes, "Independentes": conc_indep, "Canibalizacao": conc_canib}
+            dados_polos = {"Super": "Sim" if polo_super else "Não", "Padaria": "Sim" if polo_pada else "Não", "Saude": "Sim" if polo_hosp else "Não", "Banco": "Sim" if polo_banc else "Não", "Pet": "Sim" if polo_pet else "Não", "Feminino": "Sim" if polo_fem else "Não"}
+            dados_caract = {"Local": f"{char_local} (+{score_local})", "Posicao": f"{char_posicao} (+{score_posicao})", "Visib.": char_visib, "Acess.": char_acess, "Vagas": char_vagas, "Sol": char_solar}
+            pdf_bytes = exportar_pdf(dados, endereco, lat_lon_str, observacoes, avaliacoes, dados_concorrencia, dados_polos, dados_caract, foto, score_final)
+            st.download_button(label="⬇️ Baixar PDF", data=pdf_bytes, file_name=f"Relatorio_{cidade_selecionada}.pdf", mime="application/pdf")
     else:
-        pesos_loc = {"Centro": 10, "Bairro": 5, "Interligação": 5, "Intrabairro": 5}
-        score_local = pesos_loc.get(char_local, 0)
-
-    st.markdown("<h3 style='text-align: center;'>Concorrência</h3>", unsafe_allow_html=True)
-    col_c1, col_c2, col_c3 = st.columns(3)
-    with col_c1: conc_redes = st.select_slider("Redes", options=["Baixo", "Médio", "Alto"])
-    with col_c2: conc_indep = st.select_slider("Independentes", options=["Baixo", "Médio", "Alto"])
-    with col_c3: conc_canib = st.select_slider("Canibalização", options=["Baixo", "Médio", "Alto"])
-
-    st.markdown("<h3 style='text-align: center;'>Polos geradores de tráfego</h3>", unsafe_allow_html=True)
-    p1, p2, p3 = st.columns(3)
-    with p1: polo_super = st.checkbox("Supermercado")
-    with p2: polo_pada = st.checkbox("Padaria")
-    with p3: polo_hosp = st.checkbox("Hospital/UPA")
-    p4, p5, p6 = st.columns(3)
-    with p4: polo_banc = st.checkbox("Bancos/Lotéricas")
-    with p5: polo_pet = st.checkbox("PetShop")
-    with p6: polo_fem = st.checkbox("Lojas público feminino")
-
-    # Cálculo final das fórmulas
-    score_ponto = peso_padrao[f_pess] + peso_padrao[f_veic] + peso_renda[c_rend] + peso_padrao[c_popu]
-    score_ponto += peso_concorrencia[conc_redes] + peso_concorrencia[conc_indep] + peso_canibalizacao[conc_canib]
-    score_ponto += (7 if polo_super else 0) + (6 if polo_pada else 0) + (5 if polo_hosp else 0)
-    score_ponto += (5 if polo_banc else 0) + (2 if polo_pet else 0) + (5 if polo_fem else 0)
-    score_ponto += (5 if char_acess == "Boa" else -10) + (5 if char_vagas == "Sim" else -10)
-    score_ponto += (5 if char_visib == "Boa" else -5) + (5 if char_solar == "Boa" else 0)
-    
-    score_ponto += score_local
-    score_ponto += score_posicao
-    
-    score_final = score_mercado + score_ponto
-    observacoes = st.text_area("📝 Observações da Vistoria:", height=80)
-
-    st.markdown(f'<div class="score-container"><h1 style="color:white;">{score_final} pts</h1></div>', unsafe_allow_html=True)
-
-    if st.button("🚀 Gerar Relatório"):
-        avaliacoes = {"Fluxo Pessoas": f_pess, "Fluxo Veículos": f_veic, "Renda": c_rend, "Concentração": c_popu}
-        dados_concorrencia = {"Redes": conc_redes, "Independentes": conc_indep, "Canibalizacao": conc_canib}
-        dados_polos = {"Super": "Sim" if polo_super else "Não", "Padaria": "Sim" if polo_pada else "Não", "Saude": "Sim" if polo_hosp else "Não", "Banco": "Sim" if polo_banc else "Não", "Pet": "Sim" if polo_pet else "Não", "Feminino": "Sim" if polo_fem else "Não"}
-        dados_caract = {
-            "Local": f"{char_local} (+{score_local})", 
-            "Posicao": f"{char_posicao} (+{score_posicao})", 
-            "Visib.": char_visib, 
-            "Acess.": char_acess, 
-            "Vagas": char_vagas, 
-            "Sol": char_solar
-        }
-
-        pdf_bytes = exportar_pdf(dados, endereco, lat_lon_str, observacoes, avaliacoes, dados_concorrencia, dados_polos, dados_caract, foto, score_final)
-        st.download_button(label="⬇️ Baixar PDF", data=pdf_bytes, file_name=f"Relatorio_{cidade_selecionada}.pdf", mime="application/pdf")
+        st.info("Por favor, selecione um município para iniciar a análise.")
