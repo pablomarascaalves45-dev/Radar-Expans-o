@@ -57,7 +57,6 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia,
     pdf.set_text_color(0, 0, 0)
     pdf.ln(2)
     
-    # ... (Restante da função PDF mantida conforme original) ...
     pdf.set_font("Arial", "B", 10)
     pdf.cell(0, 6, txt="1. Mercado da Cidade", ln=True)
     pdf.set_font("Arial", "", 9)
@@ -106,7 +105,6 @@ df = load_data()
 if df is not None:
     st.title("🎯 Radar de Expansão")
     
-    # BLOCO 1
     st.subheader("1. Mercado da Cidade")
     cidades = sorted(df['Município'].dropna().unique())
     col_cidade, col_uf = st.columns([4, 1])
@@ -137,9 +135,9 @@ if df is not None:
             st.metric("💰 Renda Média", formatar_br(dados.get('Renda Média Domiciliar (SM)', 0), 2))
             st.metric("🏗️ Lojas Cabem", formatar_br(lojas_cabem_valor, 0))
 
-        # --- LÓGICA DE SCORE DE MERCADO ---
+        # --- LÓGICA DE SCORE DE MERCADO (EQUALIZADO PARA MÁX 30 / MÍN -30) ---
         score_mercado = 0
-        max_mercado = 30 # Baseado nos ganhos (15 + 15)
+        max_mercado = 30 
         
         if lojas_cabem_valor > 0:
             score_mercado += 15
@@ -147,11 +145,13 @@ if df is not None:
                 score_mercado += 15
 
         if estado_cidade in ["SC", "PR"]:
-            if demanda_cidade < 2000000: score_mercado -= 25 
-            if populacao_cidade < 15000: score_mercado -= 20 
+            if demanda_cidade < 2000000: score_mercado -= 15 
+            if populacao_cidade < 15000: score_mercado -= 15 
         elif estado_cidade == "RS":
-            if demanda_cidade < 1200000: score_mercado -= 20
-            if populacao_cidade < 6000: score_mercado -= 20
+            if demanda_cidade < 1200000: score_mercado -= 15
+            if populacao_cidade < 6000: score_mercado -= 15
+        
+        score_mercado = max(-30, min(30, score_mercado))
 
         st.markdown("---")
         st.subheader("2. Mídia e Localização")
@@ -163,15 +163,19 @@ if df is not None:
         st.markdown("---")
         st.subheader("3. Dados do Ponto")
         
+        # --- DEFINIÇÃO DE PESOS EQUALIZADOS PARA TOTALIZAR 70 ---
         opcoes_padrao = ["Selecionar", "Baixo", "Médio", "Alto"]
         opcoes_renda = ["Selecionar", "Baixa", "Média", "Alta"]
         opcoes_sim_nao = ["Selecionar", "Sim", "Não"]
         opcoes_boa_ruim = ["Selecionar", "Boa", "Ruim"]
 
-        peso_padrao = {"Selecionar": 0, "Baixo": 5, "Médio": 10, "Alto": 15}
-        peso_renda = {"Selecionar": 0, "Baixa": 5, "Média": 15, "Alta": 10}
-        peso_concorrencia = {"Selecionar": 0, "Baixo": 10, "Médio": 5, "Alto": -5} 
-        peso_canibalizacao = {"Selecionar": 0, "Baixo": 10, "Médio": -5, "Alto": -10}
+        # Pesos Slider (Max 4 * 5 = 20)
+        peso_padrao = {"Selecionar": 0, "Baixo": 1, "Médio": 3, "Alto": 5}
+        peso_renda = {"Selecionar": 0, "Baixa": 1, "Média": 5, "Alta": 3}
+        
+        # Concorrência (Max 15)
+        peso_concorrencia = {"Selecionar": 0, "Baixo": 5, "Médio": 2, "Alto": -5} 
+        peso_canibalizacao = {"Selecionar": 0, "Baixo": 5, "Médio": -3, "Alto": -10}
         
         col_a, col_b = st.columns(2)
         col_c, col_d = st.columns(2)
@@ -198,6 +202,7 @@ if df is not None:
         with col_c3: conc_canib = st.select_slider("Canibalização", options=opcoes_padrao, value="Selecionar")
 
         st.markdown("<h3 style='text-align: center;'>Polos geradores de tráfego</h3>", unsafe_allow_html=True)
+        # Max 20 pontos em polos
         p1, p2, p3 = st.columns(3)
         with p1: polo_super = st.checkbox("Supermercado")
         with p2: polo_pada = st.checkbox("Padaria")
@@ -209,39 +214,40 @@ if df is not None:
 
         observacoes = st.text_area("📝 Observações da Vistoria:", height=80)
 
-        # --- CÁLCULO DE MÁXIMOS DO PONTO ---
-        max_ponto = 15+15+15+15+15+10+10+7+6+5+5+2+5+5+5+5+5 # Soma dos maiores valores positivos possíveis
+        # --- LÓGICA DE PONTUAÇÃO REAL (LIMITADA A 70) ---
+        max_ponto = 70 
         
-        # --- Lógica de Pontuação Real ---
-        score_posicao = 0
-        if char_posicao != "Selecionar":
-            if estado_cidade == "RS": score_posicao = {"Esquina": 10, "Meio de quadra": 5, "Rótula": 7}.get(char_posicao, 0)
-            elif estado_cidade == "PR": score_posicao = {"Esquina": 10, "Meio de quadra": 5 if populacao_cidade < 50000 else -5, "Rótula": 7}.get(char_posicao, 0)
-            elif estado_cidade == "SC": score_posicao = {"Esquina": 10, "Meio de quadra": -10, "Rótula": 7}.get(char_posicao, 0)
-            else: score_posicao = {"Esquina": 5, "Meio de quadra": 0, "Rótula": 2}.get(char_posicao, 0)
-
-        score_local = 0
-        if char_local != "Selecionar":
-            if populacao_cidade <= 100000:
-                pesos_loc = {"Centro": 15 if lojas_atuais == 0 else 10, "Bairro": -5 if lojas_atuais == 0 else 5, "Interligação": 0 if lojas_atuais == 0 else 5, "Intrabairro": -5 if lojas_atuais == 0 else 0}
-            else:
-                pesos_loc = {"Centro": 10, "Bairro": 5, "Interligação": 5, "Intrabairro": 5}
-            score_local = pesos_loc.get(char_local, 0)
-
-        score_ponto = peso_padrao[f_pess] + peso_padrao[f_veic] + peso_renda[c_rend] + peso_padrao[c_popu]
-        score_ponto += peso_concorrencia[conc_redes] + peso_concorrencia[conc_indep] + peso_canibalizacao[conc_canib]
-        score_ponto += (7 if polo_super else 0) + (6 if polo_pada else 0) + (5 if polo_hosp else 0)
-        score_ponto += (5 if polo_banc else 0) + (2 if polo_pet else 0) + (5 if polo_fem else 0)
+        score_ponto_calc = 0
+        score_ponto_calc += peso_padrao[f_pess] + peso_padrao[f_veic] + peso_renda[c_rend] + peso_padrao[c_popu]
+        score_ponto_calc += peso_concorrencia[conc_redes] + peso_concorrencia[conc_indep] + peso_canibalizacao[conc_canib]
         
-        if char_acess != "Selecionar": score_ponto += (5 if char_acess == "Boa" else -10)
-        if char_vagas != "Selecionar": score_ponto += (5 if char_vagas == "Sim" else -10)
-        if char_visib != "Selecionar": score_ponto += (5 if char_visib == "Boa" else -5)
-        if char_solar != "Selecionar": score_ponto += (5 if char_solar == "Boa" else 0)
-        score_ponto += score_local + score_posicao
+        # Polos (Total max 20)
+        score_ponto_calc += (5 if polo_super else 0) + (4 if polo_pada else 0) + (3 if polo_hosp else 0)
+        score_ponto_calc += (3 if polo_banc else 0) + (2 if polo_pet else 0) + (3 if polo_fem else 0)
         
+        # Características (Total max 15)
+        if char_acess != "Selecionar": score_ponto_calc += (3 if char_acess == "Boa" else -5)
+        if char_vagas != "Selecionar": score_ponto_calc += (3 if char_vagas == "Sim" else -5)
+        if char_visib != "Selecionar": score_ponto_calc += (3 if char_visib == "Boa" else -3)
+        if char_solar != "Selecionar": score_ponto_calc += (2 if char_solar == "Boa" else 0)
+        
+        # Local e Posição (Max 15)
+        score_pos = 0
+        if char_posicao == "Esquina": score_pos = 4
+        elif char_posicao == "Rótula": score_pos = 3
+        elif char_posicao == "Meio de quadra": score_pos = 1
+        
+        score_loc = 0
+        if char_local == "Centro": score_loc = 4
+        elif char_local in ["Bairro", "Interligação"]: score_loc = 3
+        
+        score_ponto_calc += score_pos + score_loc
+        
+        # Trava de segurança para o Ponto
+        score_ponto = min(max_ponto, score_ponto_calc)
         score_final = score_mercado + score_ponto
 
-        # --- BOTÃO AVALIAR E EXIBIÇÃO ---
+        # --- BOTÃO AVALIAR ---
         if st.button("📊 AVALIAR"):
             st.markdown(f"""
                 <div class="score-container">
@@ -253,13 +259,7 @@ if df is not None:
                 </div>
             """, unsafe_allow_html=True)
 
-            # Botão de Gerar Relatório aparece apenas após avaliar
-            avaliacoes = {"Fluxo Pessoas": f_pess, "Fluxo Veículos": f_veic, "Renda": c_rend, "Concentração": c_popu}
-            dados_concorrencia = {"Redes": conc_redes, "Independentes": conc_indep, "Canibalizacao": conc_canib}
-            dados_polos = {"Super": "Sim" if polo_super else "Não", "Padaria": "Sim" if polo_pada else "Não", "Saude": "Sim" if polo_hosp else "Não", "Banco": "Sim" if polo_banc else "Não", "Pet": "Sim" if polo_pet else "Não", "Feminino": "Sim" if polo_fem else "Não"}
-            dados_caract = {"Local": f"{char_local} (+{score_local})", "Posicao": f"{char_posicao} (+{score_posicao})", "Visib.": char_visib, "Acess.": char_acess, "Vagas": char_vagas, "Sol": char_solar}
-            
-            pdf_bytes = exportar_pdf(dados, endereco, lat_lon_str, observacoes, avaliacoes, dados_concorrencia, dados_polos, dados_caract, foto, score_final)
+            pdf_bytes = exportar_pdf(dados, endereco, lat_lon_str, observacoes, {}, {}, {}, {}, foto, score_final)
             st.download_button(label="🚀 Baixar Relatório PDF", data=pdf_bytes, file_name=f"Relatorio_{cidade_selecionada}.pdf", mime="application/pdf")
 
     else:
