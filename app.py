@@ -37,7 +37,7 @@ def formatar_br(valor, casas=2):
     except:
         return str(valor)
 
-# --- FUNÇÃO PARA GERAR PDF (FOTO NO FINAL E DINÂMICA) ---
+# --- FUNÇÃO PARA GERAR PDF ---
 def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia, polos, caracteristicas, foto_arquivo, score_final):
     pdf = FPDF()
     pdf.add_page()
@@ -103,7 +103,7 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia,
     # Espaço Restante para a Foto
     pdf.ln(2)
     current_y = pdf.get_y()
-    page_height = 297 # A4 height in mm
+    page_height = 297 
     bottom_margin = 15
     available_height = page_height - current_y - bottom_margin
 
@@ -198,8 +198,8 @@ if df is not None:
     with col_cp3: char_visib = st.selectbox("Visibilidade", options=["Boa", "Ruim"])
     
     col_cp4, col_cp5, col_cp6 = st.columns(3)
-    # AJUSTE: Acessibilidade agora usa Sim/Não como as Vagas
-    with col_cp4: char_acess = st.selectbox("Acessibilidade", options=["Sim", "Não"])
+    # AJUSTE: Acessibilidade Boa/Ruim
+    with col_cp4: char_acess = st.selectbox("Acessibilidade", options=["Boa", "Ruim"])
     with col_cp5: char_vagas = st.selectbox("Vagas", options=["Sim", "Não"])
     with col_cp6: char_solar = st.selectbox("Posição Solar", options=["Boa", "Ruim"])
 
@@ -225,8 +225,8 @@ if df is not None:
     score_ponto += (7 if polo_super else 0) + (6 if polo_pada else 0) + (5 if polo_hosp else 0)
     score_ponto += (5 if polo_banc else 0) + (2 if polo_pet else 0) + (5 if polo_fem else 0)
     
-    # AJUSTE SOLICITADO: Acessibilidade Sim (+5) ou Não (-10)
-    score_ponto += (5 if char_acess == "Sim" else -10)
+    # AJUSTE: Acessibilidade Boa (+5) ou Ruim (-10)
+    score_ponto += (5 if char_acess == "Boa" else -10)
     
     # AJUSTE: Vagas Sim (+5) ou Não (-10)
     score_ponto += (5 if char_vagas == "Sim" else -10)
