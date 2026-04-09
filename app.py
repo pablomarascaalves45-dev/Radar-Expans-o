@@ -133,7 +133,6 @@ if df is not None:
     with col_uf:
         st.text_input("Estado:", value=dados.get('UF', ''), disabled=True)
     
-    # Extração de variáveis para lógica de score
     populacao_cidade = dados.get('População', 0)
     lojas_atuais = dados.get('N° FSJ', 0)
     lojas_cabem_valor = dados.get('Lojas Cabem', 0)
@@ -162,9 +161,10 @@ if df is not None:
     st.markdown("---")
     st.subheader("3. Dados do Ponto")
     
+    # Pesos
     peso_padrao = {"Baixo": 5, "Médio": 10, "Alto": 15}
     peso_renda = {"Baixa": 5, "Média": 15, "Alta": 10}
-    peso_concorrencia = {"Baixo": 10, "Médio": 5, "Alto": 0}
+    peso_concorrencia = {"Baixo": 10, "Médio": 5, "Alto": -5} # ATUALIZADO
     peso_canibalizacao = {"Baixo": 10, "Médio": -5, "Alto": -10}
     
     col_a, col_b = st.columns(2)
@@ -185,19 +185,18 @@ if df is not None:
     with col_cp5: char_vagas = st.selectbox("Vagas", options=["Sim", "Não"])
     with col_cp6: char_solar = st.selectbox("Posição Solar", options=["Boa", "Ruim"])
 
-    # --- LÓGICA DE PESO POR LOCAL (Nova Solicitação) ---
+    # Lógica de Localização
     score_local = 0
     if populacao_cidade <= 100000:
-        if lojas_atuais == 0:  # Primeira loja da cidade
+        if lojas_atuais == 0:
             pesos_loc = {"Centro": 15, "Bairro": -5, "Interligação": 0, "Intrabairro": -5}
-        else:  # Cidade pequena, mas já tem loja
+        else:
             pesos_loc = {"Centro": 10, "Bairro": 5, "Interligação": 5, "Intrabairro": 0}
         score_local = pesos_loc.get(char_local, 0)
-    else:  # Cidade Grande (> 100k)
+    else:
         pesos_loc = {"Centro": 10, "Bairro": 5, "Interligação": 5, "Intrabairro": 5}
         score_local = pesos_loc.get(char_local, 0)
 
-    # --- CONCORRÊNCIA E POLOS ---
     st.markdown("<h3 style='text-align: center;'>Concorrência</h3>", unsafe_allow_html=True)
     col_c1, col_c2, col_c3 = st.columns(3)
     with col_c1: conc_redes = st.select_slider("Redes", options=["Baixo", "Médio", "Alto"])
@@ -214,18 +213,13 @@ if df is not None:
     with p5: polo_pet = st.checkbox("PetShop")
     with p6: polo_fem = st.checkbox("Lojas público feminino")
 
-    # --- CÁLCULO SCORE PONTO ---
+    # Cálculo final
     score_ponto = peso_padrao[f_pess] + peso_padrao[f_veic] + peso_renda[c_rend] + peso_padrao[c_popu]
     score_ponto += peso_concorrencia[conc_redes] + peso_concorrencia[conc_indep] + peso_canibalizacao[conc_canib]
     score_ponto += (7 if polo_super else 0) + (6 if polo_pada else 0) + (5 if polo_hosp else 0)
     score_ponto += (5 if polo_banc else 0) + (2 if polo_pet else 0) + (5 if polo_fem else 0)
-    
-    score_ponto += (5 if char_acess == "Boa" else -10)
-    score_ponto += (5 if char_vagas == "Sim" else -10)
-    score_ponto += (5 if char_visib == "Boa" else -5)
-    score_ponto += (5 if char_solar == "Boa" else 0)
-    
-    # Soma o novo score de Local
+    score_ponto += (5 if char_acess == "Boa" else -10) + (5 if char_vagas == "Sim" else -10)
+    score_ponto += (5 if char_visib == "Boa" else -5) + (5 if char_solar == "Boa" else 0)
     score_ponto += score_local
     
     score_final = score_mercado + score_ponto
@@ -234,7 +228,6 @@ if df is not None:
     st.markdown(f'<div class="score-container"><h1 style="color:white;">{score_final} pts</h1></div>', unsafe_allow_html=True)
 
     if st.button("🚀 Gerar Relatório"):
-        # Preparação dicionários para PDF
         avaliacoes = {"Fluxo Pessoas": f_pess, "Fluxo Veículos": f_veic, "Renda": c_rend, "Concentração": c_popu}
         dados_concorrencia = {"Redes": conc_redes, "Independentes": conc_indep, "Canibalizacao": conc_canib}
         dados_polos = {"Super": "Sim" if polo_super else "Não", "Padaria": "Sim" if polo_pada else "Não", "Saude": "Sim" if polo_hosp else "Não", "Banco": "Sim" if polo_banc else "Não", "Pet": "Sim" if polo_pet else "Não", "Feminino": "Sim" if polo_fem else "Não"}
