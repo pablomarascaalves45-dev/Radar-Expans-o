@@ -35,6 +35,71 @@ def formatar_br(valor, casas=2):
         return f"{valor:,.{casas}f}".replace(",", "X").replace(".", ",").replace("X", ".")
     except: return str(valor)
 
+def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia, polos, caracteristicas, foto_arquivo, score_final):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_margins(10, 10, 10)
+    pdf.set_font("Arial", "B", 14)
+    pdf.cell(0, 8, txt="Relatorio de Expansao - Analise de Ponto", ln=True, align='C')
+    pdf.set_text_color(0, 51, 102)
+    pdf.set_font("Arial", "B", 12)
+    pdf.cell(0, 8, txt=f"SCORE FINAL: {score_final} PONTOS", ln=True, align='C')
+    pdf.set_text_color(0, 0, 0)
+    pdf.ln(2)
+
+    pdf.set_font("Arial", "B", 10)
+    pdf.cell(0, 6, txt="1. Mercado da Cidade", ln=True)
+    pdf.set_font("Arial", "", 9)
+    municipio = str(dados_cidade.get('Município', 'N/A')).encode('latin-1', 'ignore').decode('latin-1')
+    uf = str(dados_cidade.get('UF', 'N/A'))
+    pdf.cell(0, 5, txt=f"Municipio: {municipio} - {uf} | Populacao: {formatar_br(dados_cidade.get('População', 0), 0)}", ln=True)
+    pdf.ln(2)
+
+    pdf.set_font("Arial", "B", 10)
+    pdf.cell(0, 6, txt="2. Dados do Ponto", ln=True)
+    pdf.set_font("Arial", "", 8)
+    pdf.multi_cell(0, 4, txt=f"Endereco: {str(endereco).encode('latin-1', 'ignore').decode('latin-1')}")
+    pdf.cell(0, 4, txt=f"GPS: {lat_lon}", ln=True)
+    pdf.ln(2)
+
+    pdf.set_font("Arial", "B", 10)
+    pdf.cell(0, 6, txt="3. Analise de Campo", ln=True)
+    y_start_analise = pdf.get_y()
+    
+    def print_dict_compact(titulo, dicionario, x_pos, y_pos):
+        pdf.set_xy(x_pos, y_pos)
+        pdf.set_font("Arial", "B", 8)
+        pdf.cell(45, 5, txt=titulo, ln=True)
+        pdf.set_font("Arial", "", 8)
+        for chave, valor in dicionario.items():
+            pdf.set_x(x_pos)
+            pdf.cell(45, 4, txt=f"- {chave}: {valor}", ln=True)
+        return pdf.get_y()
+
+    h1 = print_dict_compact("Fluxo/Renda", avaliacoes, 10, y_start_analise)
+    h2 = print_dict_compact("Concorrencia", concorrencia, 10, h1 + 2)
+    h3 = print_dict_compact("Caracteristicas", caracteristicas, 60, y_start_analise)
+    h4 = print_dict_compact("Polos Geradores", polos, 110, y_start_analise)
+
+    final_y = max(h2, h3, h4) + 5
+    pdf.set_xy(10, final_y)
+    pdf.set_font("Arial", "B", 9)
+    pdf.cell(0, 5, txt="Observacoes:", ln=True)
+    pdf.set_font("Arial", "", 8)
+    pdf.multi_cell(0, 4, txt=str(obs).encode('latin-1', 'ignore').decode('latin-1'))
+    
+    if foto_arquivo:
+        try:
+            img = Image.open(foto_arquivo)
+            if img.mode in ("RGBA", "P"): img = img.convert("RGB")
+            img_path = "temp_pdf_foto.jpg"
+            img.save(img_path)
+            pdf.image(img_path, x=20, y=pdf.get_y()+5, w=170)
+            os.remove(img_path)
+        except: pass
+    
+    return pdf.output(dest='S').encode('latin-1', errors='replace')
+
 # --- CARREGAMENTO DE DADOS ---
 @st.cache_data
 def load_data():
@@ -70,7 +135,6 @@ if df is not None:
             estado_cidade = dados.get('UF', '')
             st.text_input("Estado:", value=estado_cidade, disabled=True)
         
-        # Métricas iniciais
         populacao_cidade = dados.get('População', 0)
         lojas_atuais = dados.get('N° FSJ', 0)
         lojas_cabem_valor = dados.get('Lojas Cabem', 0)
@@ -88,9 +152,15 @@ if df is not None:
             st.metric("💰 Renda Média", formatar_br(dados.get('Renda Média Domiciliar (SM)', 0), 2))
             st.metric("🏗️ Lojas Cabem", formatar_br(lojas_cabem_valor, 0))
 
-        # --- SCORE MERCADO (Só soma se houver dados) ---
-        score_mercado = (15 if lojas_cabem_valor > 0 else 0) + (15 if share_valor_original <= 0.30 else 0)
-        # Penalidades por estado (conforme sua lógica anterior)
+        # --- LÓGICA DE SCORE DE MERCADO (ATUALIZADA) ---
+        score_mercado = 0
+        if lojas_cabem_valor > 0:
+            score_mercado += 15
+            # O share só conta se a demanda suportar lojas (Lojas Cabem > 0)
+            if share_valor_original <= 0.30:
+                score_mercado += 15
+
+        # Penalidades por estado
         if estado_cidade in ["SC", "PR"]:
             if demanda_cidade < 2000000: score_mercado -= 15
             if populacao_cidade < 15000: score_mercado -= 15
@@ -101,12 +171,13 @@ if df is not None:
         st.markdown("---")
         st.subheader("2. Mídia e Localização")
         endereco = st.text_input("📍 Link ou Endereço do Ponto:")
+        loc = get_geolocation()
+        lat_lon_str = f"{loc['coords']['latitude']}, {loc['coords']['longitude']}" if loc else "Não capturado"
         foto = st.file_uploader("📸 Foto do Imóvel:", type=['jpg', 'jpeg', 'png'])
         
         st.markdown("---")
         st.subheader("3. Dados do Ponto")
         
-        # Dicionários de pesos atualizados com "Selecionar" valendo 0
         opcoes_padrao = ["Selecionar", "Baixo", "Médio", "Alto"]
         opcoes_renda = ["Selecionar", "Baixa", "Média", "Alta"]
         opcoes_sim_nao = ["Selecionar", "Sim", "Não"]
@@ -135,7 +206,7 @@ if df is not None:
         with col_cp5: char_vagas = st.selectbox("Vagas", options=opcoes_sim_nao)
         with col_cp6: char_solar = st.selectbox("Posição Solar", options=opcoes_boa_ruim)
 
-        # --- LÓGICA DE POSIÇÃO (Só calcula se não for "Selecionar") ---
+        # Lógica de Posição Solar e Geográfica
         score_posicao = 0
         if char_posicao != "Selecionar":
             if estado_cidade == "RS":
@@ -147,7 +218,6 @@ if df is not None:
             else:
                 score_posicao = {"Esquina": 5, "Meio de quadra": 0, "Rótula": 2}.get(char_posicao, 0)
 
-        # Lógica de Localização (Só calcula se não for "Selecionar")
         score_local = 0
         if char_local != "Selecionar":
             if populacao_cidade <= 100000:
@@ -175,21 +245,26 @@ if df is not None:
         # --- CÁLCULO FINAL ---
         score_ponto = peso_padrao[f_pess] + peso_padrao[f_veic] + peso_renda[c_rend] + peso_padrao[c_popu]
         score_ponto += peso_concorrencia[conc_redes] + peso_concorrencia[conc_indep] + peso_canibalizacao[conc_canib]
-        
-        # Polos
         score_ponto += (7 if polo_super else 0) + (6 if polo_pada else 0) + (5 if polo_hosp else 0)
         score_ponto += (5 if polo_banc else 0) + (2 if polo_pet else 0) + (5 if polo_fem else 0)
         
-        # Características Extras (Só soma se não for "Selecionar")
         if char_acess != "Selecionar": score_ponto += (5 if char_acess == "Boa" else -10)
         if char_vagas != "Selecionar": score_ponto += (5 if char_vagas == "Sim" else -10)
         if char_visib != "Selecionar": score_ponto += (5 if char_visib == "Boa" else -5)
         if char_solar != "Selecionar": score_ponto += (5 if char_solar == "Boa" else 0)
         
         score_ponto += score_local + score_posicao
-        
         score_final = score_mercado + score_ponto
-        
+        observacoes = st.text_area("📝 Observações da Vistoria:", height=80)
+
         st.markdown(f'<div class="score-container"><h1 style="color:white;">{score_final} pts</h1></div>', unsafe_allow_html=True)
-        
-        # (O restante do código de PDF e Botões permanece igual...)
+
+        if st.button("🚀 Gerar Relatório"):
+            avaliacoes = {"Fluxo Pessoas": f_pess, "Fluxo Veículos": f_veic, "Renda": c_rend, "Concentração": c_popu}
+            dados_concorrencia = {"Redes": conc_redes, "Independentes": conc_indep, "Canibalizacao": conc_canib}
+            dados_polos = {"Super": "Sim" if polo_super else "Não", "Padaria": "Sim" if polo_pada else "Não", "Saude": "Sim" if polo_hosp else "Não", "Banco": "Sim" if polo_banc else "Não", "Pet": "Sim" if polo_pet else "Não", "Feminino": "Sim" if polo_fem else "Não"}
+            dados_caract = {"Local": f"{char_local} (+{score_local})", "Posicao": f"{char_posicao} (+{score_posicao})", "Visib.": char_visib, "Acess.": char_acess, "Vagas": char_vagas, "Sol": char_solar}
+            pdf_bytes = exportar_pdf(dados, endereco, lat_lon_str, observacoes, avaliacoes, dados_concorrencia, dados_polos, dados_caract, foto, score_final)
+            st.download_button(label="⬇️ Baixar PDF", data=pdf_bytes, file_name=f"Relatorio_{cidade_selecionada}.pdf", mime="application/pdf")
+    else:
+        st.info("Por favor, selecione um município para iniciar a análise.")
