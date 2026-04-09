@@ -31,7 +31,7 @@ st.markdown("""
         margin: 5px 0;
     }
     .total-score-text {
-        font-size: 2rem;
+        font-size: 2.2rem;
         color: #ffffff;
         font-weight: bold;
     }
@@ -51,11 +51,9 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia,
     pdf.set_margins(10, 10, 10)
     pdf.set_auto_page_break(False)
 
-    # Cabeçalho
     pdf.set_font("Arial", "B", 12)
     pdf.cell(0, 6, txt="Relatorio de Expansao - Analise de Ponto", ln=True, align='C')
     
-    # Faixa de Score
     pdf.set_fill_color(30, 33, 48)
     pdf.set_text_color(255, 255, 255)
     pdf.set_font("Arial", "B", 10)
@@ -63,7 +61,7 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia,
     pdf.set_text_color(0, 0, 0)
     pdf.ln(2)
 
-    # --- SEÇÃO 1: DADOS DO MERCADO ---
+    # 1. DADOS DO MERCADO
     pdf.set_font("Arial", "B", 9)
     pdf.cell(0, 5, txt="1. DADOS DO MERCADO", ln=True)
     pdf.set_font("Arial", "", 8)
@@ -80,7 +78,7 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia,
     pdf.cell(col_w, 5, txt=f"Lojas Cabem: {formatar_br(dados_cidade.get('Lojas Cabem', 0), 0)}", ln=1)
     pdf.ln(2)
 
-    # --- SEÇÃO 2: LOCALIZAÇÃO ---
+    # 2. LOCALIZACAO
     pdf.set_font("Arial", "B", 9)
     pdf.cell(0, 5, txt="2. LOCALIZACAO", ln=True)
     pdf.set_font("Arial", "", 8)
@@ -88,7 +86,7 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia,
     pdf.cell(0, 4, txt=f"Coordenadas GPS: {lat_lon}", ln=True)
     pdf.ln(2)
 
-    # --- SEÇÃO 3: ANÁLISE TÉCNICA ---
+    # 3. ANALISE TECNICA
     pdf.set_font("Arial", "B", 9)
     pdf.cell(0, 5, txt="3. ANALISE TECNICA DO PONTO", ln=True)
     y_antes = pdf.get_y()
@@ -222,9 +220,7 @@ if df is not None:
         opcoes_sim_nao = ["Selecionar", "Sim", "Não"]
         opcoes_boa_ruim = ["Selecionar", "Boa", "Ruim"]
 
-        # AJUSTE SOLICITADO: Fluxo de pessoas (5, 10, 15)
         peso_fluxo_pessoas = {"Selecionar": 0, "Baixo": 5, "Médio": 10, "Alto": 15}
-        # Demais pesos padrão
         peso_padrao = {"Selecionar": 0, "Baixo": 1, "Médio": 3, "Alto": 5}
         peso_renda = {"Selecionar": 0, "Baixa": 1, "Média": 5, "Alta": 3}
         peso_concorrencia = {"Selecionar": 0, "Baixo": 5, "Médio": 2, "Alto": -5} 
@@ -272,7 +268,6 @@ if df is not None:
         score_ponto_calc += (5 if polo_super else 0) + (4 if polo_pada else 0) + (3 if polo_hosp else 0)
         score_ponto_calc += (3 if polo_banc else 0) + (2 if polo_pet else 0) + (3 if polo_fem else 0)
         
-        # AJUSTE SOLICITADO: Lógica de Posição do Imóvel
         if char_posicao == "Esquina":
             score_ponto_calc += 5
         elif char_posicao == "Rótula":
@@ -282,7 +277,6 @@ if df is not None:
             elif estado_cidade == "SC": score_ponto_calc -= 3
             elif estado_cidade == "PR": score_ponto_calc += 3
 
-        # Demais avaliações técnicas
         if char_acess == "Boa": score_ponto_calc += 3
         elif char_acess == "Ruim": score_ponto_calc -= 5
         if char_vagas == "Sim": score_ponto_calc += 3
@@ -295,10 +289,14 @@ if df is not None:
         score_final = score_mercado + score_ponto
 
         if st.button("📊 AVALIAR"):
+            # Cálculo de porcentagens para exibição
+            perc_mercado = (score_mercado / 30) * 100
+            perc_ponto = (score_ponto / 70) * 100
+
             st.markdown(f"""
                 <div class="score-container">
-                    <div class="sub-score-text">Mercado da Cidade: <b>{score_mercado}/30</b></div>
-                    <div class="sub-score-text">Dados do Ponto: <b>{score_ponto}/70</b></div>
+                    <div class="sub-score-text">Mercado da Cidade: <b>{perc_mercado:.2f}%</b> ({score_mercado}/30)</div>
+                    <div class="sub-score-text">Dados do Ponto: <b>{perc_ponto:.2f}%</b> ({score_ponto}/70)</div>
                     <hr style="border: 0.5px solid #4a5568;">
                     <div class="total-score-text">{score_final} pts</div>
                 </div>
