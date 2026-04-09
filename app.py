@@ -35,6 +35,10 @@ st.markdown("""
         color: #ffffff;
         font-weight: bold;
     }
+    .warning-text {
+        color: #ff4b4b;
+        font-weight: bold;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -289,13 +293,18 @@ if df is not None:
         score_final = score_mercado + score_ponto
 
         if st.button("📊 AVALIAR"):
-            # Cálculo de porcentagens para exibição
-            perc_mercado = (score_mercado / 30) * 100
+            # Lógica para mensagem de aviso ou porcentagem
+            if score_mercado < 0:
+                texto_mercado = f"<span class='warning-text'>Mercado e população insuficiente</span> ({score_mercado}/30)"
+            else:
+                perc_mercado = (score_mercado / 30) * 100
+                texto_mercado = f"<b>{perc_mercado:.2f}%</b> ({score_mercado}/30)"
+
             perc_ponto = (score_ponto / 70) * 100
 
             st.markdown(f"""
                 <div class="score-container">
-                    <div class="sub-score-text">Mercado da Cidade: <b>{perc_mercado:.2f}%</b> ({score_mercado}/30)</div>
+                    <div class="sub-score-text">Mercado da Cidade: {texto_mercado}</div>
                     <div class="sub-score-text">Dados do Ponto: <b>{perc_ponto:.2f}%</b> ({score_ponto}/70)</div>
                     <hr style="border: 0.5px solid #4a5568;">
                     <div class="total-score-text">{score_final} pts</div>
