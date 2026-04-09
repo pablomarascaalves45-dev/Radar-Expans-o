@@ -13,9 +13,11 @@ st.set_page_config(page_title="Radar de Expansão", layout="centered")
 # --- SISTEMA DE LOGIN ---
 # CADASTRE AQUI OS USUÁRIOS PERMITIDOS
 USUARIOS_AUTORIZADOS = {
-    "Admin": "51999999999",
-    "Joao Silva": "51988888888",
-    "Maria Souza": "48977777777"
+    "Pablo": "55997260245",
+    "Lucas": "5499206706",
+    "Eduardo": "5499865084",
+    "Eduardo": "5496733252",
+    "Estevam": "5496964416"
 }
 
 if 'logado' not in st.session_state:
