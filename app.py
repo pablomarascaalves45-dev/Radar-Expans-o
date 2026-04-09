@@ -220,11 +220,14 @@ if df is not None:
         opcoes_sim_nao = ["Selecionar", "Sim", "Não"]
         opcoes_boa_ruim = ["Selecionar", "Boa", "Ruim"]
 
+        # CONFIGURAÇÃO DE PESOS
         peso_fluxo_pessoas = {"Selecionar": 0, "Baixo": 5, "Médio": 10, "Alto": 15}
         peso_padrao = {"Selecionar": 0, "Baixo": 1, "Médio": 3, "Alto": 5}
         peso_renda = {"Selecionar": 0, "Baixa": 1, "Média": 5, "Alta": 3}
         peso_concorrencia = {"Selecionar": 0, "Baixo": 5, "Médio": 2, "Alto": -5} 
-        peso_canibalizacao = {"Selecionar": 0, "Baixo": 5, "Médio": -3, "Alto": -10}
+        
+        # PESOS DE CANIBALIZAÇÃO ATUALIZADOS
+        peso_canibalizacao = {"Selecionar": 0, "Baixo": -2, "Médio": -6, "Alto": -10}
         
         col_a, col_b = st.columns(2)
         col_c, col_d = st.columns(2)
@@ -294,7 +297,6 @@ if df is not None:
         porcentagem_final = (aproveitamento_mercado * 30) + (aproveitamento_ponto * 70)
 
         if st.button("📊 AVALIAR"):
-            # Formatação simplificada conforme pedido
             perc_mercado_str = f"<b>{(aproveitamento_mercado*100):.2f}%</b>"
             perc_ponto_str = f"<b>{(aproveitamento_ponto*100):.2f}%</b>"
 
