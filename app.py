@@ -31,9 +31,22 @@ st.markdown("""
         margin: 5px 0;
     }
     .total-score-text {
-        font-size: 2.8rem;
-        color: #00ffcc;
+        font-size: 3.5rem;
         font-weight: bold;
+        margin-top: -10px;
+    }
+    .classificacao-text {
+        font-size: 1.4rem;
+        font-weight: bold;
+        margin-top: 10px;
+        text-transform: uppercase;
+    }
+    .recomendacao-text {
+        font-size: 0.95rem;
+        color: #bdc3c7;
+        margin-bottom: 15px;
+        font-style: italic;
+        line-height: 1.2;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -192,43 +205,28 @@ if df is not None:
             st.metric("💰 Renda Média", formatar_br(renda_media, 2))
             st.metric("🏗️ Lojas Cabem", formatar_br(lojas_cabem_valor, 0))
 
-        # --- NOVO SCORE MERCADO ---
+        # --- SCORE MERCADO ---
         score_mercado = 0
-        
-        # Validação Básica (Capacidade e Share)
-        if lojas_cabem_valor > 0:
-            score_mercado += 15
-        if share_valor_original <= 0.30:
-            score_mercado += 15
+        if lojas_cabem_valor > 0: score_mercado += 15
+        if share_valor_original <= 0.30: score_mercado += 15
 
-        # Validações Específicas por Estado (Nova Lógica)
         if estado_cidade == "RS":
-            # Penalidades (Travas de Risco)
             if demanda_cidade < 1200000: score_mercado -= 15
             if populacao_cidade < 6000: score_mercado -= 15
-            
-            # Bonificações por Potencial (Se atender requisitos positivos)
-            score_potencial_rs = 0
-            if populacao_cidade > 6000: score_potencial_rs += 5
-            if demanda_cidade > 1200000: score_potencial_rs += 5
-            # Se atender as duas, o bônus sobe para 15
-            if score_potencial_rs == 10: score_potencial_rs = 15
-            score_mercado += score_potencial_rs
-
+            bonus = 0
+            if populacao_cidade > 6000: bonus += 5
+            if demanda_cidade > 1200000: bonus += 5
+            if bonus == 10: bonus = 15
+            score_mercado += bonus
         elif estado_cidade in ["SC", "PR"]:
-            # Penalidades (Travas de Risco)
             if demanda_cidade < 2000000: score_mercado -= 15 
             if populacao_cidade < 15000: score_mercado -= 15 
+            bonus = 0
+            if populacao_cidade > 15000: bonus += 5
+            if demanda_cidade > 2000000: bonus += 5
+            if bonus == 10: bonus = 15
+            score_mercado += bonus
 
-            # Bonificações por Potencial (Se atender requisitos positivos)
-            score_potencial_sc_pr = 0
-            if populacao_cidade > 15000: score_potencial_sc_pr += 5
-            if demanda_cidade > 2000000: score_potencial_sc_pr += 5
-            # Se atender as duas, o bônus sobe para 15
-            if score_potencial_sc_pr == 10: score_potencial_sc_pr = 15
-            score_mercado += score_potencial_sc_pr
-
-        # Limite final do Score de Mercado (0 a 30)
         score_mercado = max(0, min(30, score_mercado))
 
         st.markdown("---")
@@ -246,7 +244,7 @@ if df is not None:
         opcoes_sim_nao = ["Selecionar", "Sim", "Não"]
         opcoes_boa_ruim = ["Selecionar", "Boa", "Ruim"]
 
-        # CONFIGURAÇÃO DE PESOS
+        # PESOS
         peso_fluxo_pessoas = {"Selecionar": 0, "Baixo": 5, "Médio": 10, "Alto": 15}
         peso_padrao = {"Selecionar": 0, "Baixo": 1, "Médio": 3, "Alto": 5}
         peso_renda = {"Selecionar": 0, "Baixa": 1, "Média": 5, "Alta": 3}
@@ -261,21 +259,21 @@ if df is not None:
         with col_d: c_popu = st.select_slider("Concentração populacional", options=opcoes_padrao, value="Selecionar")
 
         st.markdown("<h3 style='text-align: center;'>Características do Ponto</h3>", unsafe_allow_html=True)
-        col_cp1, col_cp2, col_cp3 = st.columns(3)
-        with col_cp1: char_local = st.selectbox("Local", options=["Selecionar", "Centro", "Bairro", "Interligação", "Intrabairro"])
-        with col_cp2: char_posicao = st.selectbox("Posição", options=["Selecionar", "Esquina", "Rótula", "Meio de quadra"])
-        with col_cp3: char_visib = st.selectbox("Visibilidade", options=opcoes_boa_ruim)
+        cp1, cp2, cp3 = st.columns(3)
+        with cp1: char_local = st.selectbox("Local", options=["Selecionar", "Centro", "Bairro", "Interligação", "Intrabairro"])
+        with cp2: char_posicao = st.selectbox("Posição", options=["Selecionar", "Esquina", "Rótula", "Meio de quadra"])
+        with cp3: char_visib = st.selectbox("Visibilidade", options=opcoes_boa_ruim)
         
-        col_cp4, col_cp5, col_cp6 = st.columns(3)
-        with col_cp4: char_acess = st.selectbox("Acessibilidade", options=opcoes_boa_ruim)
-        with col_cp5: char_vagas = st.selectbox("Vagas", options=opcoes_sim_nao)
-        with col_cp6: char_solar = st.selectbox("Posição Solar", options=opcoes_boa_ruim)
+        cp4, cp5, cp6 = st.columns(3)
+        with cp4: char_acess = st.selectbox("Acessibilidade", options=opcoes_boa_ruim)
+        with cp5: char_vagas = st.selectbox("Vagas", options=opcoes_sim_nao)
+        with cp6: char_solar = st.selectbox("Posição Solar", options=opcoes_boa_ruim)
 
         st.markdown("<h3 style='text-align: center;'>Concorrência</h3>", unsafe_allow_html=True)
-        col_c1, col_c2, col_c3 = st.columns(3)
-        with col_c1: conc_redes = st.select_slider("Redes", options=opcoes_padrao, value="Selecionar")
-        with col_c2: conc_indep = st.select_slider("Independentes", options=opcoes_padrao, value="Selecionar")
-        with col_c3: conc_canib = st.select_slider("Canibalização", options=opcoes_padrao, value="Selecionar")
+        c1, c2, c3 = st.columns(3)
+        with c1: conc_redes = st.select_slider("Redes", options=opcoes_padrao, value="Selecionar")
+        with c2: conc_indep = st.select_slider("Independentes", options=opcoes_padrao, value="Selecionar")
+        with c3: conc_canib = st.select_slider("Canibalização", options=opcoes_padrao, value="Selecionar")
 
         st.markdown("<h3 style='text-align: center;'>Polos geradores de tráfego</h3>", unsafe_allow_html=True)
         p1, p2, p3 = st.columns(3)
@@ -289,16 +287,14 @@ if df is not None:
 
         observacoes = st.text_area("📝 Observações da Vistoria:", height=80)
 
-        # --- CÁLCULO SCORE PONTO ---
+        # CÁLCULO SCORE PONTO
         score_ponto_calc = peso_fluxo_pessoas[f_pess] + peso_padrao[f_veic] + peso_renda[c_rend] + peso_padrao[c_popu]
         score_ponto_calc += peso_concorrencia[conc_redes] + peso_concorrencia[conc_indep] + peso_canibalizacao[conc_canib]
         score_ponto_calc += (5 if polo_super else 0) + (4 if polo_pada else 0) + (3 if polo_hosp else 0)
         score_ponto_calc += (3 if polo_banc else 0) + (2 if polo_pet else 0) + (3 if polo_fem else 0)
         
-        if char_posicao == "Esquina":
-            score_ponto_calc += 5
-        elif char_posicao == "Rótula":
-            score_ponto_calc += 3
+        if char_posicao == "Esquina": score_ponto_calc += 5
+        elif char_posicao == "Rótula": score_ponto_calc += 3
         elif char_posicao == "Meio de quadra":
             if estado_cidade == "RS": score_ponto_calc += 3
             elif estado_cidade == "SC": score_ponto_calc -= 3
@@ -314,32 +310,50 @@ if df is not None:
 
         score_ponto = max(0, min(70, score_ponto_calc))
 
-        # --- CÁLCULO DA PORCENTAGEM PONDERADA ---
+        # CÁLCULO FINAL
         aproveitamento_mercado = score_mercado / 30
         aproveitamento_ponto = score_ponto / 70
         porcentagem_final = (aproveitamento_mercado * 30) + (aproveitamento_ponto * 70)
 
+        # --- LÓGICA DE CLASSIFICAÇÃO ---
+        if porcentagem_final >= 90:
+            label_class = "Premium"
+            txt_recomenda = "Ponto de altíssima prioridade; aprovação imediata."
+            cor_destaque = "#00ffcc"
+        elif porcentagem_final >= 70:
+            label_class = "Favorável"
+            txt_recomenda = "Ponto sólido; ajustes menores em negociação de aluguel."
+            cor_destaque = "#f1c40f"
+        elif porcentagem_final >= 60:
+            label_class = "Médio Risco"
+            txt_recomenda = "Requer análise de comitê; olhar atento à canibalização e cidades vizinhas."
+            cor_destaque = "#e67e22"
+        else:
+            label_class = "Inviável"
+            txt_recomenda = "Reprovado tecnicamente; alto risco de ROI negativo."
+            cor_destaque = "#ff4b4b"
+
         if st.button("📊 AVALIAR"):
-            perc_mercado_str = f"<b>{(aproveitamento_mercado*100):.2f}%</b>"
-            perc_ponto_str = f"<b>{(aproveitamento_ponto*100):.2f}%</b>"
+            p_merc = f"<b>{(aproveitamento_mercado*100):.2f}%</b>"
+            p_ponto = f"<b>{(aproveitamento_ponto*100):.2f}%</b>"
 
             st.markdown(f"""
                 <div class="score-container">
-                    <div class="sub-score-text">Mercado da Cidade: {perc_mercado_str}</div>
-                    <div class="sub-score-text">Dados do Ponto: {perc_ponto_str}</div>
-                    <hr style="border: 0.5px solid #4a5568;">
-                    <div class="sub-score-text" style="color: #9da5b1; font-size: 0.9rem;">ADERÊNCIA TOTAL AO MODELO</div>
-                    <div class="total-score-text">{porcentagem_final:.2f}%</div>
+                    <div class="sub-score-text">Mercado da Cidade: {p_merc}</div>
+                    <div class="sub-score-text">Dados do Ponto: {p_ponto}</div>
+                    <hr style="border: 0.5px solid #4a5568; margin: 20px 0;">
+                    <div class="classificacao-text" style="color: {cor_destaque};">{label_class}</div>
+                    <div class="recomendacao-text">{txt_recomenda}</div>
+                    <div class="total-score-text" style="color: {cor_destaque};">{porcentagem_final:.2f}%</div>
                 </div>
             """, unsafe_allow_html=True)
 
-            # Exportação de dados para PDF
             aval = {"Fluxo Pessoas": f_pess, "Fluxo Veiculos": f_veic, "Renda": c_rend, "Concentracao": c_popu}
             conc = {"Redes": conc_redes, "Independentes": conc_indep, "Canibalizacao": conc_canib}
-            pol = {"Supermercado": "Sim" if polo_super else "Nao", "Padaria": "Sim" if polo_pada else "Nao", "Hospital": "Sim" if polo_hosp else "Nao", "Bancos": "Sim" if polo_banc else "Nao", "Pet": "Sim" if polo_pet else "Nao", "Feminino": "Sim" if polo_fem else "Nao"}
-            caract = {"Local": char_local, "Posicao": char_posicao, "Visibilidade": char_visib, "Acessibilidade": char_acess, "Vagas": char_vagas, "Sol": char_solar}
+            pol = {"Super": polo_super, "Padaria": polo_pada, "Hospital": polo_hosp, "Bancos": polo_banc, "Pet": polo_pet, "Fem": polo_fem}
+            caract = {"Local": char_local, "Posicao": char_posicao, "Visib": char_visib, "Acess": char_acess, "Vagas": char_vagas, "Sol": char_solar}
 
-            pdf_bytes = exportar_pdf(dados, endereco, lat_lon_str, observacoes, aval, conc, pol, caract, foto, f"{porcentagem_final:.2f}%", score_mercado, score_ponto)
+            pdf_bytes = exportar_pdf(dados, endereco, lat_lon_str, observacoes, aval, conc, pol, caract, foto, f"{porcentagem_final:.2f}% ({label_class})", score_mercado, score_ponto)
             st.download_button(label="🚀 Baixar Relatório PDF", data=pdf_bytes, file_name=f"Relatorio_{cidade_selecionada}.pdf", mime="application/pdf")
     else:
         st.info("Por favor, selecione um município.")
