@@ -107,20 +107,14 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia,
     bottom_margin = 15
     available_height = page_height - current_y - bottom_margin
 
-    if foto_arquivo and available_height > 20: # Só imprime se sobrar espaço razoável
+    if foto_arquivo and available_height > 20:
         try:
             img = Image.open(foto_arquivo)
             if img.mode in ("RGBA", "P"): img = img.convert("RGB")
-            
-            # Salva temporariamente
             img_path = "temp_pdf_foto.jpg"
             img.save(img_path)
-            
-            # Largura máxima de 170mm para manter centralizada
-            # A altura é ajustada proporcionalmente ou limitada ao espaço disponível
             img_w = 170
             pdf.image(img_path, x=20, y=current_y, w=img_w)
-            
             if os.path.exists(img_path): os.remove(img_path)
         except: pass
     
@@ -148,7 +142,6 @@ df = load_data()
 if df is not None:
     st.title("🎯 Radar de Expansão")
     
-    # 1. MERCADO
     st.subheader("1. Mercado da Cidade")
     cidades = sorted(df['Município'].dropna().unique())
     col_cidade, col_uf = st.columns([4, 1])
@@ -175,7 +168,6 @@ if df is not None:
 
     st.markdown("---")
     
-    # 2. LOCALIZAÇÃO
     st.subheader("2. Mídia e Localização")
     endereco = st.text_input("📍 Link ou Endereço do Ponto:")
     loc = get_geolocation()
@@ -185,7 +177,6 @@ if df is not None:
     
     st.markdown("---")
     
-    # 3. DADOS DO PONTO
     st.subheader("3. Dados do Ponto")
     
     peso_padrao = {"Baixo": 5, "Médio": 10, "Alto": 15}
@@ -233,7 +224,10 @@ if df is not None:
     score_ponto += (7 if polo_super else 0) + (6 if polo_pada else 0) + (5 if polo_hosp else 0)
     score_ponto += (5 if polo_banc else 0) + (2 if polo_pet else 0) + (5 if polo_fem else 0)
     score_ponto += (5 if char_acess == "Boa" else 0)
-    score_ponto += (5 if char_vagas == "Sim" else 0)
+    
+    # AJUSTE SOLICITADO: Vagas Sim (+5) ou Não (-10)
+    score_ponto += (5 if char_vagas == "Sim" else -10)
+    
     score_final = score_mercado + score_ponto
 
     observacoes = st.text_area("📝 Observações da Vistoria:", height=80)
