@@ -198,7 +198,8 @@ if df is not None:
     with col_cp3: char_visib = st.selectbox("Visibilidade", options=["Boa", "Ruim"])
     
     col_cp4, col_cp5, col_cp6 = st.columns(3)
-    with col_cp4: char_acess = st.selectbox("Acessibilidade", options=["Boa", "Ruim"])
+    # AJUSTE: Acessibilidade agora usa Sim/Não como as Vagas
+    with col_cp4: char_acess = st.selectbox("Acessibilidade", options=["Sim", "Não"])
     with col_cp5: char_vagas = st.selectbox("Vagas", options=["Sim", "Não"])
     with col_cp6: char_solar = st.selectbox("Posição Solar", options=["Boa", "Ruim"])
 
@@ -223,9 +224,11 @@ if df is not None:
     score_ponto += peso_concorrencia[conc_redes] + peso_concorrencia[conc_indep] + peso_canibalizacao[conc_canib]
     score_ponto += (7 if polo_super else 0) + (6 if polo_pada else 0) + (5 if polo_hosp else 0)
     score_ponto += (5 if polo_banc else 0) + (2 if polo_pet else 0) + (5 if polo_fem else 0)
-    score_ponto += (5 if char_acess == "Boa" else 0)
     
-    # AJUSTE SOLICITADO: Vagas Sim (+5) ou Não (-10)
+    # AJUSTE SOLICITADO: Acessibilidade Sim (+5) ou Não (-10)
+    score_ponto += (5 if char_acess == "Sim" else -10)
+    
+    # AJUSTE: Vagas Sim (+5) ou Não (-10)
     score_ponto += (5 if char_vagas == "Sim" else -10)
     
     score_final = score_mercado + score_ponto
