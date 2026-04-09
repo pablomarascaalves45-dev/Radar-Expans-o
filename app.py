@@ -49,7 +49,7 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia,
     pdf = FPDF()
     pdf.add_page()
     pdf.set_margins(10, 10, 10)
-    pdf.set_auto_page_break(False) # Garante o controle manual para não gerar 2ª página
+    pdf.set_auto_page_break(False)
 
     # Cabeçalho
     pdf.set_font("Arial", "B", 12)
@@ -63,21 +63,18 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia,
     pdf.set_text_color(0, 0, 0)
     pdf.ln(2)
 
-    # --- SEÇÃO 1: DADOS DO MERCADO (Alinhado com o Print) ---
+    # --- SEÇÃO 1: DADOS DO MERCADO ---
     pdf.set_font("Arial", "B", 9)
     pdf.cell(0, 5, txt="1. DADOS DO MERCADO", ln=True)
     pdf.set_font("Arial", "", 8)
-    
     municipio = str(dados_cidade.get('Município', 'N/A')).encode('latin-1', 'ignore').decode('latin-1')
     pdf.cell(0, 5, txt=f"Cidade: {municipio} - {dados_cidade.get('UF', '')}", ln=True)
     
     pdf.set_font("Arial", "B", 8)
     col_w = 63
-    # Linha 1
     pdf.cell(col_w, 5, txt=f"Populacao: {formatar_br(dados_cidade.get('População', 0), 0)}", ln=0)
     pdf.cell(col_w, 5, txt=f"Lojas Atuais: {formatar_br(dados_cidade.get('N° FSJ', 0), 0)}", ln=0)
     pdf.cell(col_w, 5, txt=f"Renda Media: {formatar_br(dados_cidade.get('Renda Média Domiciliar (SM)', 0), 2)}", ln=1)
-    # Linha 2
     pdf.cell(col_w, 5, txt=f"Share: {formatar_br(dados_cidade.get('%Share', 0) * 100, 2)}%", ln=0)
     pdf.cell(col_w, 5, txt=f"Demanda: {formatar_br(dados_cidade.get('Demanda', 0), 2)}", ln=0)
     pdf.cell(col_w, 5, txt=f"Lojas Cabem: {formatar_br(dados_cidade.get('Lojas Cabem', 0), 0)}", ln=1)
@@ -91,12 +88,10 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia,
     pdf.cell(0, 4, txt=f"Coordenadas GPS: {lat_lon}", ln=True)
     pdf.ln(2)
 
-    # --- SEÇÃO 3: ANÁLISE TÉCNICA (Duas Colunas) ---
+    # --- SEÇÃO 3: ANÁLISE TÉCNICA ---
     pdf.set_font("Arial", "B", 9)
     pdf.cell(0, 5, txt="3. ANALISE TECNICA DO PONTO", ln=True)
-    
     y_antes = pdf.get_y()
-    # Coluna Esquerda
     pdf.set_font("Arial", "B", 7)
     pdf.cell(95, 4, txt="FLUXOS E CONCORRENCIA", ln=True)
     pdf.set_font("Arial", "", 7)
@@ -105,7 +100,6 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia,
     for k, v in concorrencia.items():
         pdf.cell(95, 3.5, txt=f"- {k}: {v}", ln=True)
     
-    # Coluna Direita
     pdf.set_y(y_antes)
     pdf.set_x(105)
     pdf.set_font("Arial", "B", 7)
@@ -119,40 +113,27 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia,
     pdf.set_x(105)
     pdf.multi_cell(95, 3.5, txt=f"- Polos: {polos_str if polos_str else 'Nenhum'}")
     
-    # Observações
     pdf.ln(2)
     pdf.set_font("Arial", "B", 8)
     pdf.cell(0, 4, txt="OBSERVACOES DA VISTORIA:", ln=True)
     pdf.set_font("Arial", "", 7)
     pdf.multi_cell(0, 3.5, txt=str(obs).encode('latin-1', 'ignore').decode('latin-1'))
 
-    # --- INSERÇÃO DE IMAGEM AUTOMÁTICA (OCUPAR ESPAÇO RESTANTE) ---
     if foto_arquivo:
         try:
             img = Image.open(foto_arquivo)
             if img.mode in ("RGBA", "P"): img = img.convert("RGB")
-            
             w_orig, h_orig = img.size
             aspect_ratio = w_orig / h_orig
-            
-            # Cálculo de espaço disponível
             y_atual = pdf.get_y()
-            margem_seguranca = 10
-            altura_disponivel = 297 - y_atual - margem_seguranca
-            largura_disponivel = 190 # 210mm - 20mm de margens
-            
-            # Tenta preencher pela largura
+            altura_disponivel = 297 - y_atual - 15
+            largura_disponivel = 190
             nova_w = largura_disponivel
             nova_h = nova_w / aspect_ratio
-            
-            # Se a altura estourar a página, ajusta pela altura disponível
             if nova_h > altura_disponivel:
                 nova_h = altura_disponivel
                 nova_w = nova_h * aspect_ratio
-            
-            # Centralizar X
             x_cent = (210 - nova_w) / 2
-            
             img_path = "temp_pdf_foto.jpg"
             img.save(img_path, quality=90)
             pdf.image(img_path, x=x_cent, y=y_atual + 5, w=nova_w, h=nova_h)
@@ -182,7 +163,6 @@ df = load_data()
 
 if df is not None:
     st.title("🎯 Radar de Expansão")
-    
     st.subheader("1. Mercado da Cidade")
     cidades = sorted(df['Município'].dropna().unique())
     col_cidade, col_uf = st.columns([4, 1])
@@ -218,8 +198,7 @@ if df is not None:
         score_mercado = 0
         if lojas_cabem_valor > 0:
             score_mercado += 15
-            if share_valor_original <= 0.30:
-                score_mercado += 15
+            if share_valor_original <= 0.30: score_mercado += 15
         if estado_cidade in ["SC", "PR"]:
             if demanda_cidade < 2000000: score_mercado -= 15 
             if populacao_cidade < 15000: score_mercado -= 15 
@@ -243,6 +222,9 @@ if df is not None:
         opcoes_sim_nao = ["Selecionar", "Sim", "Não"]
         opcoes_boa_ruim = ["Selecionar", "Boa", "Ruim"]
 
+        # AJUSTE SOLICITADO: Fluxo de pessoas (5, 10, 15)
+        peso_fluxo_pessoas = {"Selecionar": 0, "Baixo": 5, "Médio": 10, "Alto": 15}
+        # Demais pesos padrão
         peso_padrao = {"Selecionar": 0, "Baixo": 1, "Médio": 3, "Alto": 5}
         peso_renda = {"Selecionar": 0, "Baixa": 1, "Média": 5, "Alta": 3}
         peso_concorrencia = {"Selecionar": 0, "Baixo": 5, "Médio": 2, "Alto": -5} 
@@ -285,11 +267,22 @@ if df is not None:
         observacoes = st.text_area("📝 Observações da Vistoria:", height=80)
 
         # --- CÁLCULO SCORE PONTO ---
-        score_ponto_calc = peso_padrao[f_pess] + peso_padrao[f_veic] + peso_renda[c_rend] + peso_padrao[c_popu]
+        score_ponto_calc = peso_fluxo_pessoas[f_pess] + peso_padrao[f_veic] + peso_renda[c_rend] + peso_padrao[c_popu]
         score_ponto_calc += peso_concorrencia[conc_redes] + peso_concorrencia[conc_indep] + peso_canibalizacao[conc_canib]
         score_ponto_calc += (5 if polo_super else 0) + (4 if polo_pada else 0) + (3 if polo_hosp else 0)
         score_ponto_calc += (3 if polo_banc else 0) + (2 if polo_pet else 0) + (3 if polo_fem else 0)
         
+        # AJUSTE SOLICITADO: Lógica de Posição do Imóvel
+        if char_posicao == "Esquina":
+            score_ponto_calc += 5
+        elif char_posicao == "Rótula":
+            score_ponto_calc += 3
+        elif char_posicao == "Meio de quadra":
+            if estado_cidade == "RS": score_ponto_calc += 3
+            elif estado_cidade == "SC": score_ponto_calc -= 3
+            elif estado_cidade == "PR": score_ponto_calc += 3
+
+        # Demais avaliações técnicas
         if char_acess == "Boa": score_ponto_calc += 3
         elif char_acess == "Ruim": score_ponto_calc -= 5
         if char_vagas == "Sim": score_ponto_calc += 3
@@ -311,7 +304,6 @@ if df is not None:
                 </div>
             """, unsafe_allow_html=True)
 
-            # Preparação de dados para o PDF
             aval = {"Fluxo Pessoas": f_pess, "Fluxo Veiculos": f_veic, "Renda": c_rend, "Concentracao": c_popu}
             conc = {"Redes": conc_redes, "Independentes": conc_indep, "Canibalizacao": conc_canib}
             pol = {"Supermercado": "Sim" if polo_super else "Nao", "Padaria": "Sim" if polo_pada else "Nao", "Hospital": "Sim" if polo_hosp else "Nao", "Bancos": "Sim" if polo_banc else "Nao", "Pet": "Sim" if polo_pet else "Nao", "Feminino": "Sim" if polo_fem else "Nao"}
