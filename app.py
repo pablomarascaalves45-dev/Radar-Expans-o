@@ -49,9 +49,9 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia,
     pdf = FPDF()
     pdf.add_page()
     pdf.set_margins(10, 10, 10)
-    pdf.set_auto_page_break(False) # Evita quebra automática para manter em 1 página
+    pdf.set_auto_page_break(False)
 
-    # Cabeçalho Compacto
+    # Cabeçalho
     pdf.set_font("Arial", "B", 12)
     pdf.cell(0, 6, txt="Relatorio de Expansao - Analise de Ponto", ln=True, align='C')
     
@@ -63,29 +63,44 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia,
     pdf.set_text_color(0, 0, 0)
     pdf.ln(2)
 
-    # 1. Mercado e Localização (Lado a Lado)
+    # --- SEÇÃO 1: DADOS DO MERCADO (Conforme o print) ---
     pdf.set_font("Arial", "B", 9)
-    pdf.cell(95, 5, txt="1. DADOS DO MERCADO", ln=0)
-    pdf.cell(95, 5, txt="2. LOCALIZACAO", ln=1)
-    
+    pdf.cell(0, 5, txt="1. DADOS DO MERCADO", ln=True)
     pdf.set_font("Arial", "", 8)
-    municipio = str(dados_cidade.get('Município', 'N/A')).encode('latin-1', 'ignore').decode('latin-1')
-    pdf.cell(95, 4, txt=f"Cidade: {municipio} - {dados_cidade.get('UF', '')}", ln=0)
-    pdf.multi_cell(95, 4, txt=f"End: {str(endereco).encode('latin-1', 'ignore').decode('latin-1')[:100]}")
     
-    pdf.cell(95, 4, txt=f"Pop: {formatar_br(dados_cidade.get('Populacao', 0), 0)} | Demanda: {formatar_br(dados_cidade.get('Demanda', 0))}", ln=0)
-    pdf.cell(95, 4, txt=f"GPS: {lat_lon}", ln=1)
+    municipio = str(dados_cidade.get('Município', 'N/A')).encode('latin-1', 'ignore').decode('latin-1')
+    pdf.cell(0, 5, txt=f"Cidade: {municipio} - {dados_cidade.get('UF', '')}", ln=True)
+    
+    # Grid de informações do mercado (2 colunas x 3 linhas)
+    pdf.set_font("Arial", "B", 8)
+    col_w = 60
+    
+    # Linha 1
+    pdf.cell(col_w, 5, txt=f"Populacao: {formatar_br(dados_cidade.get('População', 0), 0)}", ln=0)
+    pdf.cell(col_w, 5, txt=f"Lojas Atuais: {formatar_br(dados_cidade.get('N° FSJ', 0), 0)}", ln=0)
+    pdf.cell(col_w, 5, txt=f"Renda Media: {formatar_br(dados_cidade.get('Renda Média Domiciliar (SM)', 0), 2)}", ln=1)
+    
+    # Linha 2
+    pdf.cell(col_w, 5, txt=f"Share: {formatar_br(dados_cidade.get('%Share', 0) * 100, 2)}%", ln=0)
+    pdf.cell(col_w, 5, txt=f"Demanda: {formatar_br(dados_cidade.get('Demanda', 0), 2)}", ln=0)
+    pdf.cell(col_w, 5, txt=f"Lojas Cabem: {formatar_br(dados_cidade.get('Lojas Cabem', 0), 0)}", ln=1)
     pdf.ln(2)
 
-    # 3. Analise Tecnica (Duas colunas)
+    # --- SEÇÃO 2: LOCALIZAÇÃO ---
+    pdf.set_font("Arial", "B", 9)
+    pdf.cell(0, 5, txt="2. LOCALIZACAO", ln=True)
+    pdf.set_font("Arial", "", 8)
+    pdf.multi_cell(0, 4, txt=f"Endereco: {str(endereco).encode('latin-1', 'ignore').decode('latin-1')}")
+    pdf.cell(0, 4, txt=f"Coordenadas GPS: {lat_lon}", ln=True)
+    pdf.ln(2)
+
+    # --- SEÇÃO 3: ANÁLISE TÉCNICA ---
     pdf.set_font("Arial", "B", 9)
     pdf.cell(0, 5, txt="3. ANALISE TECNICA DO PONTO", ln=True)
-    pdf.set_font("Arial", "", 8)
     
-    # Coluna A: Fluxos e Concorrência | Coluna B: Características e Polos
     y_antes = pdf.get_y()
     
-    # Coluna Esquerda
+    # Coluna Esquerda: Fluxos e Concorrência
     pdf.set_font("Arial", "B", 7)
     pdf.cell(95, 4, txt="FLUXOS E CONCORRENCIA", ln=True)
     pdf.set_font("Arial", "", 7)
@@ -94,7 +109,7 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia,
     for k, v in concorrencia.items():
         pdf.cell(95, 3.5, txt=f"- {k}: {v}", ln=True)
     
-    # Coluna Direita (Retornar o Y)
+    # Coluna Direita: Características e Polos
     pdf.set_y(y_antes)
     pdf.set_x(105)
     pdf.set_font("Arial", "B", 7)
@@ -115,17 +130,16 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia,
     pdf.set_font("Arial", "", 7)
     pdf.multi_cell(0, 3.5, txt=str(obs).encode('latin-1', 'ignore').decode('latin-1'))
 
-    # Foto (Redimensionada para caber no fim)
+    # Foto
     if foto_arquivo:
         try:
             img = Image.open(foto_arquivo)
             if img.mode in ("RGBA", "P"): img = img.convert("RGB")
             img_path = "temp_pdf_foto.jpg"
             img.save(img_path)
-            # Calcula espaço restante
-            espaco_restante = 280 - pdf.get_y() - 10
-            largura_img = 100 if espaco_restante > 60 else 60
-            pdf.image(img_path, x=55, y=pdf.get_y()+2, w=largura_img)
+            espaco_restante = 280 - pdf.get_y() - 5
+            largura_img = 90 if espaco_restante > 50 else 50
+            pdf.image(img_path, x=60, y=pdf.get_y()+2, w=largura_img)
             os.remove(img_path)
         except: pass
 
@@ -171,6 +185,7 @@ if df is not None:
         lojas_cabem_valor = dados.get('Lojas Cabem', 0)
         share_valor_original = dados.get('%Share', 0)
         demanda_cidade = dados.get('Demanda', 0)
+        renda_media = dados.get('Renda Média Domiciliar (SM)', 0)
 
         col1, col2, col3 = st.columns(3)
         with col1:
@@ -180,7 +195,7 @@ if df is not None:
             st.metric("🏠 Lojas Atuais", formatar_br(lojas_atuais, 0))
             st.metric("📈 Demanda", formatar_br(demanda_cidade, 2))
         with col3:
-            st.metric("💰 Renda Média", formatar_br(dados.get('Renda Média Domiciliar (SM)', 0), 2))
+            st.metric("💰 Renda Média", formatar_br(renda_media, 2))
             st.metric("🏗️ Lojas Cabem", formatar_br(lojas_cabem_valor, 0))
 
         # --- SCORE MERCADO ---
