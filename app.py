@@ -152,21 +152,26 @@ if df is not None:
             st.metric("💰 Renda Média", formatar_br(dados.get('Renda Média Domiciliar (SM)', 0), 2))
             st.metric("🏗️ Lojas Cabem", formatar_br(lojas_cabem_valor, 0))
 
-        # --- LÓGICA DE SCORE DE MERCADO (ATUALIZADA) ---
+        # --- LÓGICA DE SCORE DE MERCADO (COM NOVAS PENALIDADES) ---
         score_mercado = 0
+        
+        # Só considera potencial positivo se a cidade comportar lojas
         if lojas_cabem_valor > 0:
             score_mercado += 15
-            # O share só conta se a demanda suportar lojas (Lojas Cabem > 0)
             if share_valor_original <= 0.30:
                 score_mercado += 15
 
-        # Penalidades por estado
+        # Penalidades por estado (Ajustadas conforme solicitado)
         if estado_cidade in ["SC", "PR"]:
-            if demanda_cidade < 2000000: score_mercado -= 15
-            if populacao_cidade < 15000: score_mercado -= 15
+            if demanda_cidade < 2000000: 
+                score_mercado -= 25  # Requisito de Demanda
+            if populacao_cidade < 15000: 
+                score_mercado -= 20  # Requisito de População
         elif estado_cidade == "RS":
-            if demanda_cidade < 1200000: score_mercado -= 20
-            if populacao_cidade < 6000: score_mercado -= 20
+            if demanda_cidade < 1200000: 
+                score_mercado -= 20
+            if populacao_cidade < 6000: 
+                score_mercado -= 20
 
         st.markdown("---")
         st.subheader("2. Mídia e Localização")
@@ -206,7 +211,7 @@ if df is not None:
         with col_cp5: char_vagas = st.selectbox("Vagas", options=opcoes_sim_nao)
         with col_cp6: char_solar = st.selectbox("Posição Solar", options=opcoes_boa_ruim)
 
-        # Lógica de Posição Solar e Geográfica
+        # Lógica de Posição Geográfica
         score_posicao = 0
         if char_posicao != "Selecionar":
             if estado_cidade == "RS":
