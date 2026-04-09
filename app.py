@@ -120,7 +120,7 @@ def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia,
         pdf.set_x(105)
         pdf.cell(95, 3.5, txt=f"- {k}: {v}", ln=True)
     
-    polos_str = ", ".join([k for k, v in polos.items() if v == "Sim" or v is True])
+    polos_str = ", ".join([k for k, v in polos.items() if v is True])
     pdf.set_x(105)
     pdf.multi_cell(95, 3.5, txt=f"- Polos: {polos_str if polos_str else 'Nenhum'}")
     
@@ -161,3 +161,201 @@ def load_data():
         if not os.path.exists(file_path): return None
         df_raw = pd.read_excel(file_path, header=None)
         header_idx = 0
+        for i, row in df_raw.iterrows():
+            if "Município" in [str(val).strip() for val in row.values]:
+                header_idx = i
+                break
+        df = pd.read_excel(file_path, skiprows=header_idx)
+        df.columns = [str(c).strip() for c in df.columns]
+        return df
+    except: return None
+
+df = load_data()
+
+if df is not None:
+    st.title("🎯 Radar de Expansão")
+    st.subheader("1. Mercado da Cidade")
+    cidades = sorted(df['Município'].dropna().unique())
+    col_cidade, col_uf = st.columns([4, 1])
+    
+    with col_cidade:
+        cidade_selecionada = st.selectbox("Selecione o município:", options=cidades, index=None, placeholder="Escolha uma cidade...")
+    
+    if cidade_selecionada:
+        dados = df[df['Município'] == cidade_selecionada].iloc[0]
+        estado_cidade = dados.get('UF', '')
+        with col_uf:
+            st.text_input("Estado:", value=estado_cidade, disabled=True)
+        
+        populacao_cidade = dados.get('População', 0)
+        lojas_atuais = dados.get('N° FSJ', 0)
+        lojas_cabem_valor = dados.get('Lojas Cabem', 0)
+        share_valor_original = dados.get('%Share', 0)
+        demanda_cidade = dados.get('Demanda', 0)
+        renda_media = dados.get('Renda Média Domiciliar (SM)', 0)
+
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("👥 População", formatar_br(populacao_cidade, 0))
+            st.metric("📊 Share", f"{formatar_br(share_valor_original * 100, 2)}%")
+        with col2:
+            st.metric("🏠 Lojas Atuais", formatar_br(lojas_atuais, 0))
+            st.metric("📈 Demanda", formatar_br(demanda_cidade, 2))
+        with col3:
+            st.metric("💰 Renda Média", formatar_br(renda_media, 2))
+            st.metric("🏗️ Lojas Cabem", formatar_br(lojas_cabem_valor, 0))
+
+        # --- CÁLCULO SCORE MERCADO (MÁX 30) ---
+        score_mercado = 0
+        if lojas_cabem_valor > 0: score_mercado += 15
+        if share_valor_original <= 0.30: score_mercado += 15
+
+        if estado_cidade == "RS":
+            if demanda_cidade < 1200000: score_mercado -= 15
+            if populacao_cidade < 6000: score_mercado -= 15
+            bonus = 0
+            if populacao_cidade > 6000: bonus += 5
+            if demanda_cidade > 1200000: bonus += 5
+            if bonus == 10: bonus = 15
+            score_mercado += bonus
+        elif estado_cidade in ["SC", "PR"]:
+            if demanda_cidade < 2000000: score_mercado -= 15 
+            if populacao_cidade < 15000: score_mercado -= 15 
+            bonus = 0
+            if populacao_cidade > 15000: bonus += 5
+            if demanda_cidade > 2000000: bonus += 5
+            if bonus == 10: bonus = 15
+            score_mercado += bonus
+
+        score_mercado = max(0, min(30, score_mercado))
+
+        st.markdown("---")
+        st.subheader("2. Mídia e Localização")
+        endereco = st.text_input("📍 Link ou Endereço do Ponto:")
+        loc = get_geolocation()
+        lat_lon_str = f"{loc['coords']['latitude']}, {loc['coords']['longitude']}" if loc else "Não capturado"
+        foto = st.file_uploader("📸 Foto do Imóvel:", type=['jpg', 'jpeg', 'png'])
+        
+        st.markdown("---")
+        st.subheader("3. Dados do Ponto")
+        
+        opcoes_padrao = ["Selecionar", "Baixo", "Médio", "Alto"]
+        opcoes_renda = ["Selecionar", "Baixa", "Média", "Alta"]
+        opcoes_sim_nao = ["Selecionar", "Sim", "Não"]
+        opcoes_boa_ruim = ["Selecionar", "Boa", "Ruim"]
+
+        # PESOS
+        peso_fluxo_pessoas = {"Selecionar": 0, "Baixo": 5, "Médio": 10, "Alto": 15}
+        peso_padrao = {"Selecionar": 0, "Baixo": 1, "Médio": 3, "Alto": 5}
+        peso_renda = {"Selecionar": 0, "Baixa": 1, "Média": 5, "Alta": 3}
+        peso_concorrencia = {"Selecionar": 0, "Baixo": 5, "Médio": 2, "Alto": -5} 
+        peso_canibalizacao = {"Selecionar": 0, "Baixo": -2, "Médio": -6, "Alto": -10}
+        
+        col_a, col_b = st.columns(2)
+        col_c, col_d = st.columns(2)
+        with col_a: f_pess = st.select_slider("Fluxo de pessoas", options=opcoes_padrao, value="Selecionar")
+        with col_b: f_veic = st.select_slider("Fluxo de veículos", options=opcoes_padrao, value="Selecionar")
+        with col_c: c_rend = st.select_slider("Classificação de renda", options=opcoes_renda, value="Selecionar")
+        with col_d: c_popu = st.select_slider("Concentração populacional", options=opcoes_padrao, value="Selecionar")
+
+        st.markdown("<h3 style='text-align: center;'>Características do Ponto</h3>", unsafe_allow_html=True)
+        cp1, cp2, cp3 = st.columns(3)
+        with cp1: char_local = st.selectbox("Local", options=["Selecionar", "Centro", "Bairro", "Interligação", "Intrabairro"])
+        with cp2: char_posicao = st.selectbox("Posição", options=["Selecionar", "Esquina", "Rótula", "Meio de quadra"])
+        with cp3: char_visib = st.selectbox("Visibilidade", options=opcoes_boa_ruim)
+        
+        cp4, cp5, cp6 = st.columns(3)
+        with cp4: char_acess = st.selectbox("Acessibilidade", options=opcoes_boa_ruim)
+        with cp5: char_vagas = st.selectbox("Vagas", options=opcoes_sim_nao)
+        with cp6: char_solar = st.selectbox("Posição Solar", options=opcoes_boa_ruim)
+
+        st.markdown("<h3 style='text-align: center;'>Concorrência</h3>", unsafe_allow_html=True)
+        c1, c2, c3 = st.columns(3)
+        with c1: conc_redes = st.select_slider("Redes", options=opcoes_padrao, value="Selecionar")
+        with c2: conc_indep = st.select_slider("Independentes", options=opcoes_padrao, value="Selecionar")
+        with c3: conc_canib = st.select_slider("Canibalização", options=opcoes_padrao, value="Selecionar")
+
+        st.markdown("<h3 style='text-align: center;'>Polos geradores de tráfego</h3>", unsafe_allow_html=True)
+        p1, p2, p3 = st.columns(3)
+        with p1: polo_super = st.checkbox("Supermercado")
+        with p2: polo_pada = st.checkbox("Padaria")
+        with p3: polo_hosp = st.checkbox("Hospital/UPA")
+        p4, p5, p6 = st.columns(3)
+        with p4: polo_banc = st.checkbox("Bancos/Lotéricas")
+        with p5: polo_pet = st.checkbox("PetShop")
+        with p6: polo_fem = st.checkbox("Lojas público feminino")
+
+        observacoes = st.text_area("📝 Observações da Vistoria:", height=80)
+
+        # CÁLCULO SCORE PONTO (MÁX 70)
+        score_ponto_calc = peso_fluxo_pessoas[f_pess] + peso_padrao[f_veic] + peso_renda[c_rend] + peso_padrao[c_popu]
+        score_ponto_calc += peso_concorrencia[conc_redes] + peso_concorrencia[conc_indep] + peso_canibalizacao[conc_canib]
+        score_ponto_calc += (5 if polo_super else 0) + (4 if polo_pada else 0) + (3 if polo_hosp else 0)
+        score_ponto_calc += (3 if polo_banc else 0) + (2 if polo_pet else 0) + (3 if polo_fem else 0)
+        
+        if char_posicao == "Esquina": score_ponto_calc += 5
+        elif char_posicao == "Rótula": score_ponto_calc += 3
+        elif char_posicao == "Meio de quadra":
+            if estado_cidade == "RS": score_ponto_calc += 3
+            elif estado_cidade == "SC": score_ponto_calc -= 3
+            elif estado_cidade == "PR": score_ponto_calc += 3
+
+        if char_acess == "Boa": score_ponto_calc += 3
+        elif char_acess == "Ruim": score_ponto_calc -= 5
+        if char_vagas == "Sim": score_ponto_calc += 3
+        elif char_vagas == "Não": score_ponto_calc -= 5
+        if char_visib == "Boa": score_ponto_calc += 3
+        elif char_visib == "Ruim": score_ponto_calc -= 3
+        if char_solar == "Boa": score_ponto_calc += 2
+
+        score_ponto = max(0, min(70, score_ponto_calc))
+
+        # --- CORREÇÃO DA FÓRMULA FINAL ---
+        # A aderência total é a SOMA direta dos scores (Máx 30 + Máx 70 = 100)
+        porcentagem_final = score_mercado + score_ponto
+
+        # --- LÓGICA DE CLASSIFICAÇÃO ATUALIZADA (CONFORME TABELA) ---
+        if porcentagem_final > 90:
+            label_class = "Premium"
+            txt_recomenda = "Ponto de altíssima prioridade; solicitar estudo."
+            cor_destaque = "#00ffcc"
+        elif porcentagem_final >= 70:
+            label_class = "Favorável"
+            txt_recomenda = "Ponto sólido; ajustes menores em negociação de aluguel."
+            cor_destaque = "#f1c40f"
+        elif porcentagem_final >= 60:
+            label_class = "Médio Risco"
+            txt_recomenda = "Requer análise interna; olhar atento às características e dados de geomarketing."
+            cor_destaque = "#e67e22"
+        else:
+            label_class = "Inviável"
+            txt_recomenda = "Reprovado tecnicamente; alto risco de ROI negativo."
+            cor_destaque = "#ff4b4b"
+
+        if st.button("📊 AVALIAR"):
+            # Cálculo de aproveitamento individual para exibição informativa
+            perc_mercado_display = (score_mercado / 30) * 100
+            perc_ponto_display = (score_ponto / 70) * 100
+
+            st.markdown(f"""
+                <div class="score-container">
+                    <div class="sub-score-text">Mercado da Cidade: <b>{perc_mercado_display:.2f}%</b></div>
+                    <div class="sub-score-text">Dados do Ponto: <b>{perc_ponto_display:.2f}%</b></div>
+                    <hr style="border: 0.5px solid #4a5568; margin: 20px 0;">
+                    <div class="classificacao-text" style="color: {cor_destaque};">{label_class}</div>
+                    <div class="recomendacao-text">{txt_recomenda}</div>
+                    <div class="total-score-text" style="color: {cor_destaque};">{porcentagem_final:.2f}%</div>
+                </div>
+            """, unsafe_allow_html=True)
+
+            aval = {"Fluxo Pessoas": f_pess, "Fluxo Veiculos": f_veic, "Renda": c_rend, "Concentracao": c_popu}
+            conc = {"Redes": conc_redes, "Independentes": conc_indep, "Canibalizacao": conc_canib}
+            pol = {"Super": polo_super, "Padaria": polo_pada, "Hospital": polo_hosp, "Bancos": polo_banc, "Pet": polo_pet, "Fem": polo_fem}
+            caract = {"Local": char_local, "Posicao": char_posicao, "Visib": char_visib, "Acess": char_acess, "Vagas": char_vagas, "Sol": char_solar}
+
+            pdf_bytes = exportar_pdf(dados, endereco, lat_lon_str, observacoes, aval, conc, pol, caract, foto, f"{porcentagem_final:.2f}% ({label_class})", score_mercado, score_ponto)
+            st.download_button(label="🚀 Baixar Relatório PDF", data=pdf_bytes, file_name=f"Relatorio_{cidade_selecionada}.pdf", mime="application/pdf")
+    else:
+        st.info("Por favor, selecione um município.")
+else:
+    st.error("Arquivo 'Ranking PCA.xlsx' não encontrado.")
