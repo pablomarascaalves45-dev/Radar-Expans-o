@@ -131,7 +131,8 @@ if df is not None:
         cidade_selecionada = st.selectbox("Selecione o município:", options=cidades)
         dados = df[df['Município'] == cidade_selecionada].iloc[0]
     with col_uf:
-        st.text_input("Estado:", value=dados.get('UF', ''), disabled=True)
+        estado_cidade = dados.get('UF', '')
+        st.text_input("Estado:", value=estado_cidade, disabled=True)
     
     populacao_cidade = dados.get('População', 0)
     lojas_atuais = dados.get('N° FSJ', 0)
@@ -161,10 +162,9 @@ if df is not None:
     st.markdown("---")
     st.subheader("3. Dados do Ponto")
     
-    # Pesos
     peso_padrao = {"Baixo": 5, "Médio": 10, "Alto": 15}
     peso_renda = {"Baixa": 5, "Média": 15, "Alta": 10}
-    peso_concorrencia = {"Baixo": 10, "Médio": 5, "Alto": -5} # ATUALIZADO
+    peso_concorrencia = {"Baixo": 10, "Médio": 5, "Alto": -5} 
     peso_canibalizacao = {"Baixo": 10, "Médio": -5, "Alto": -10}
     
     col_a, col_b = st.columns(2)
@@ -185,7 +185,28 @@ if df is not None:
     with col_cp5: char_vagas = st.selectbox("Vagas", options=["Sim", "Não"])
     with col_cp6: char_solar = st.selectbox("Posição Solar", options=["Boa", "Ruim"])
 
-    # Lógica de Localização
+    # --- NOVA LÓGICA DE PESO POR POSIÇÃO (POR ESTADO) ---
+    score_posicao = 0
+    if estado_cidade == "RS":
+        pesos_pos = {"Esquina": 10, "Meio de quadra": 5, "Rótula": 7}
+        score_posicao = pesos_pos.get(char_posicao, 0)
+    
+    elif estado_cidade == "PR":
+        if populacao_cidade < 50000:
+            pesos_pos = {"Esquina": 10, "Meio de quadra": 5, "Rótula": 7}
+        else:
+            pesos_pos = {"Esquina": 10, "Meio de quadra": -5, "Rótula": 7}
+        score_posicao = pesos_pos.get(char_posicao, 0)
+        
+    elif estado_cidade == "SC":
+        pesos_pos = {"Esquina": 10, "Meio de quadra": -10, "Rótula": 7}
+        score_posicao = pesos_pos.get(char_posicao, 0)
+    else:
+        # Peso padrão para outros estados não especificados
+        pesos_pos = {"Esquina": 5, "Meio de quadra": 0, "Rótula": 2}
+        score_posicao = pesos_pos.get(char_posicao, 0)
+
+    # Lógica de Localização (Original do script)
     score_local = 0
     if populacao_cidade <= 100000:
         if lojas_atuais == 0:
@@ -220,7 +241,10 @@ if df is not None:
     score_ponto += (5 if polo_banc else 0) + (2 if polo_pet else 0) + (5 if polo_fem else 0)
     score_ponto += (5 if char_acess == "Boa" else -10) + (5 if char_vagas == "Sim" else -10)
     score_ponto += (5 if char_visib == "Boa" else -5) + (5 if char_solar == "Boa" else 0)
+    
+    # Soma dos pesos geográficos e de localização
     score_ponto += score_local
+    score_ponto += score_posicao
     
     score_final = score_mercado + score_ponto
     observacoes = st.text_area("📝 Observações da Vistoria:", height=80)
@@ -231,7 +255,14 @@ if df is not None:
         avaliacoes = {"Fluxo Pessoas": f_pess, "Fluxo Veículos": f_veic, "Renda": c_rend, "Concentração": c_popu}
         dados_concorrencia = {"Redes": conc_redes, "Independentes": conc_indep, "Canibalizacao": conc_canib}
         dados_polos = {"Super": "Sim" if polo_super else "Não", "Padaria": "Sim" if polo_pada else "Não", "Saude": "Sim" if polo_hosp else "Não", "Banco": "Sim" if polo_banc else "Não", "Pet": "Sim" if polo_pet else "Não", "Feminino": "Sim" if polo_fem else "Não"}
-        dados_caract = {"Local": f"{char_local} (+{score_local})", "Posicao": char_posicao, "Visib.": char_visib, "Acess.": char_acess, "Vagas": char_vagas, "Sol": char_solar}
+        dados_caract = {
+            "Local": f"{char_local} (+{score_local})", 
+            "Posicao": f"{char_posicao} (+{score_posicao})", 
+            "Visib.": char_visib, 
+            "Acess.": char_acess, 
+            "Vagas": char_vagas, 
+            "Sol": char_solar
+        }
 
         pdf_bytes = exportar_pdf(dados, endereco, lat_lon_str, observacoes, avaliacoes, dados_concorrencia, dados_polos, dados_caract, foto, score_final)
         st.download_button(label="⬇️ Baixar PDF", data=pdf_bytes, file_name=f"Relatorio_{cidade_selecionada}.pdf", mime="application/pdf")
