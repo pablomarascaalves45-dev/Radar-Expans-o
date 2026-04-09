@@ -192,18 +192,44 @@ if df is not None:
             st.metric("💰 Renda Média", formatar_br(renda_media, 2))
             st.metric("🏗️ Lojas Cabem", formatar_br(lojas_cabem_valor, 0))
 
-        # --- SCORE MERCADO ---
+        # --- NOVO SCORE MERCADO ---
         score_mercado = 0
+        
+        # Validação Básica (Capacidade e Share)
         if lojas_cabem_valor > 0:
             score_mercado += 15
-            if share_valor_original <= 0.30: score_mercado += 15
-        if estado_cidade in ["SC", "PR"]:
-            if demanda_cidade < 2000000: score_mercado -= 15 
-            if populacao_cidade < 15000: score_mercado -= 15 
-        elif estado_cidade == "RS":
+        if share_valor_original <= 0.30:
+            score_mercado += 15
+
+        # Validações Específicas por Estado (Nova Lógica)
+        if estado_cidade == "RS":
+            # Penalidades (Travas de Risco)
             if demanda_cidade < 1200000: score_mercado -= 15
             if populacao_cidade < 6000: score_mercado -= 15
-        score_mercado = max(-30, min(30, score_mercado))
+            
+            # Bonificações por Potencial (Se atender requisitos positivos)
+            score_potencial_rs = 0
+            if populacao_cidade > 6000: score_potencial_rs += 5
+            if demanda_cidade > 1200000: score_potencial_rs += 5
+            # Se atender as duas, o bônus sobe para 15
+            if score_potencial_rs == 10: score_potencial_rs = 15
+            score_mercado += score_potencial_rs
+
+        elif estado_cidade in ["SC", "PR"]:
+            # Penalidades (Travas de Risco)
+            if demanda_cidade < 2000000: score_mercado -= 15 
+            if populacao_cidade < 15000: score_mercado -= 15 
+
+            # Bonificações por Potencial (Se atender requisitos positivos)
+            score_potencial_sc_pr = 0
+            if populacao_cidade > 15000: score_potencial_sc_pr += 5
+            if demanda_cidade > 2000000: score_potencial_sc_pr += 5
+            # Se atender as duas, o bônus sobe para 15
+            if score_potencial_sc_pr == 10: score_potencial_sc_pr = 15
+            score_mercado += score_potencial_sc_pr
+
+        # Limite final do Score de Mercado (0 a 30)
+        score_mercado = max(0, min(30, score_mercado))
 
         st.markdown("---")
         st.subheader("2. Mídia e Localização")
@@ -225,8 +251,6 @@ if df is not None:
         peso_padrao = {"Selecionar": 0, "Baixo": 1, "Médio": 3, "Alto": 5}
         peso_renda = {"Selecionar": 0, "Baixa": 1, "Média": 5, "Alta": 3}
         peso_concorrencia = {"Selecionar": 0, "Baixo": 5, "Médio": 2, "Alto": -5} 
-        
-        # PESOS DE CANIBALIZAÇÃO ATUALIZADOS
         peso_canibalizacao = {"Selecionar": 0, "Baixo": -2, "Médio": -6, "Alto": -10}
         
         col_a, col_b = st.columns(2)
@@ -288,11 +312,10 @@ if df is not None:
         elif char_visib == "Ruim": score_ponto_calc -= 3
         if char_solar == "Boa": score_ponto_calc += 2
 
-        # Ajuste de limite do score do ponto (0 a 70)
         score_ponto = max(0, min(70, score_ponto_calc))
 
         # --- CÁLCULO DA PORCENTAGEM PONDERADA ---
-        aproveitamento_mercado = max(0, score_mercado) / 30
+        aproveitamento_mercado = score_mercado / 30
         aproveitamento_ponto = score_ponto / 70
         porcentagem_final = (aproveitamento_mercado * 30) + (aproveitamento_ponto * 70)
 
@@ -310,6 +333,7 @@ if df is not None:
                 </div>
             """, unsafe_allow_html=True)
 
+            # Exportação de dados para PDF
             aval = {"Fluxo Pessoas": f_pess, "Fluxo Veiculos": f_veic, "Renda": c_rend, "Concentracao": c_popu}
             conc = {"Redes": conc_redes, "Independentes": conc_indep, "Canibalizacao": conc_canib}
             pol = {"Supermercado": "Sim" if polo_super else "Nao", "Padaria": "Sim" if polo_pada else "Nao", "Hospital": "Sim" if polo_hosp else "Nao", "Bancos": "Sim" if polo_banc else "Nao", "Pet": "Sim" if polo_pet else "Nao", "Feminino": "Sim" if polo_fem else "Nao"}
