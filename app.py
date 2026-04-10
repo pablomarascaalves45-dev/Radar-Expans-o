@@ -15,7 +15,7 @@ USUARIOS_AUTORIZADOS = {
     "Pablo": "55997260245",
     "Lucas": "5499206706",
     "Eduardo": "5499865084",
-    "Eduardo": "5496733252",
+    "Eduardo_Cel": "5496733252",
     "Estevam": "5496964416",
     "Gabriel": "54997114483"
 }
@@ -53,7 +53,6 @@ def tela_login():
                 st.error("Usuário não cadastrado ou dados incorretos.")
         st.markdown('</div>', unsafe_allow_html=True)
 
-# Lógica de exibição
 if not st.session_state.logado:
     tela_login()
 else:
@@ -63,20 +62,12 @@ else:
         st.session_state.logado = False
         st.rerun()
 
-    # --- ESTILIZAÇÃO ADAPTÁVEL (LIGHT/DARK MODE) ---
+    # --- ESTILIZAÇÃO ---
     st.markdown("""
         <style>
-        /* Ajuste das Métricas para herdar a cor do tema (resolve o problema do modo branco) */
-        [data-testid="stMetricValue"] { 
-            font-size: 1.6rem !important; 
-        }
-        [data-testid="stMetricLabel"] { 
-            font-size: 0.9rem !important; 
-        }
-        
+        [data-testid="stMetricValue"] { font-size: 1.6rem !important; }
+        [data-testid="stMetricLabel"] { font-size: 0.9rem !important; }
         .stSelectSlider label { font-size: 0.85rem !important; font-weight: bold; }
-        
-        /* Container de Score adaptável */
         .score-container {
             background-color: rgba(157, 165, 177, 0.1);
             padding: 1.5rem;
@@ -92,7 +83,6 @@ else:
         </style>
         """, unsafe_allow_html=True)
 
-    # --- FUNÇÕES AUXILIARES ---
     def formatar_br(valor, casas=2):
         try:
             if pd.isna(valor): return "0"
@@ -103,7 +93,6 @@ else:
         pdf = FPDF()
         pdf.add_page()
         pdf.set_margins(10, 10, 10)
-        pdf.set_auto_page_break(False)
         pdf.set_font("Arial", "B", 12)
         pdf.cell(0, 6, txt="Relatorio de Expansao - Analise de Ponto", ln=True, align='C')
         
@@ -114,7 +103,6 @@ else:
         
         pdf.set_fill_color(240, 240, 240)
         pdf.set_text_color(50, 50, 50)
-        pdf.set_font("Arial", "B", 8)
         pdf.cell(0, 6, txt=f"Mercado da Cidade: {p_merc_txt}  |  Dados do Ponto: {p_ponto_txt}", ln=True, align='C', fill=True)
         
         pdf.set_text_color(0, 0, 0)
@@ -133,38 +121,31 @@ else:
         pdf.cell(col_w, 5, txt=f"Share: {formatar_br(dados_cidade.get('%Share', 0) * 100, 2)}%", ln=0)
         pdf.cell(col_w, 5, txt=f"Demanda: {formatar_br(dados_cidade.get('Demanda', 0), 2)}", ln=0)
         pdf.cell(col_w, 5, txt=f"Lojas Cabem: {formatar_br(dados_cidade.get('Lojas Cabem', 0), 0)}", ln=1)
+        
         pdf.ln(2)
-
         pdf.set_font("Arial", "B", 9)
         pdf.cell(0, 5, txt="2. LOCALIZACAO", ln=True)
         pdf.set_font("Arial", "", 8)
         pdf.multi_cell(0, 4, txt=f"Endereco: {str(endereco).encode('latin-1', 'ignore').decode('latin-1')}")
         pdf.cell(0, 4, txt=f"Coordenadas GPS: {lat_lon}", ln=True)
+        
         pdf.ln(2)
-
         pdf.set_font("Arial", "B", 9)
         pdf.cell(0, 5, txt="3. ANALISE TECNICA DO PONTO", ln=True)
         y_antes = pdf.get_y()
         pdf.set_font("Arial", "B", 7)
         pdf.cell(95, 4, txt="FLUXOS E CONCORRENCIA", ln=True)
         pdf.set_font("Arial", "", 7)
-        for k, v in avaliacoes.items():
-            pdf.cell(95, 3.5, txt=f"- {k}: {v}", ln=True)
-        for k, v in concorrencia.items():
-            pdf.cell(95, 3.5, txt=f"- {k}: {v}", ln=True)
+        for k, v in avaliacoes.items(): pdf.cell(95, 3.5, txt=f"- {k}: {v}", ln=True)
+        for k, v in concorrencia.items(): pdf.cell(95, 3.5, txt=f"- {k}: {v}", ln=True)
         
-        pdf.set_y(y_antes)
-        pdf.set_x(105)
+        pdf.set_y(y_antes); pdf.set_x(105)
         pdf.set_font("Arial", "B", 7)
         pdf.cell(95, 4, txt="CARACTERISTICAS E POLOS", ln=True)
         pdf.set_font("Arial", "", 7)
         for k, v in caracteristicas.items():
             pdf.set_x(105)
             pdf.cell(95, 3.5, txt=f"- {k}: {v}", ln=True)
-        
-        polos_str = ", ".join([k for k, v in polos.items() if v is True])
-        pdf.set_x(105)
-        pdf.multi_cell(95, 3.5, txt=f"- Polos: {polos_str if polos_str else 'Nenhum'}")
         
         pdf.ln(2)
         pdf.set_font("Arial", "B", 8)
@@ -176,18 +157,9 @@ else:
             try:
                 img = Image.open(foto_arquivo)
                 if img.mode in ("RGBA", "P"): img = img.convert("RGB")
-                w_orig, h_orig = img.size
-                aspect_ratio = w_orig / h_orig
-                y_atual = pdf.get_y()
-                nova_w = 190
-                nova_h = nova_w / aspect_ratio
-                if nova_h > (297 - y_atual - 15):
-                    nova_h = (297 - y_atual - 15)
-                    nova_w = nova_h * aspect_ratio
-                x_cent = (210 - nova_w) / 2
                 img_path = "temp_pdf_foto.jpg"
-                img.save(img_path, quality=90)
-                pdf.image(img_path, x=x_cent, y=y_atual + 5, w=nova_w, h=nova_h)
+                img.save(img_path, quality=80)
+                pdf.image(img_path, x=10, y=pdf.get_y()+5, w=100)
                 os.remove(img_path)
             except: pass
         return pdf.output(dest='S').encode('latin-1', errors='replace')
@@ -222,8 +194,7 @@ else:
         if cidade_selecionada:
             dados = df[df['Município'] == cidade_selecionada].iloc[0]
             estado_cidade = dados.get('UF', '')
-            with col_uf:
-                st.text_input("Estado:", value=estado_cidade, disabled=True)
+            with col_uf: st.text_input("Estado:", value=estado_cidade, disabled=True)
             
             populacao_cidade = dados.get('População', 0)
             lojas_atuais = dados.get('N° FSJ', 0)
@@ -240,28 +211,29 @@ else:
                 st.metric("🏠 Lojas Atuais", formatar_br(lojas_atuais, 0))
                 st.metric("📈 Demanda", formatar_br(demanda_cidade, 2))
             with col3:
-                st.metric("💰 Renda Média", formatar_br(renda_media, 2))
+                st.metric("💰 Renda Média", formatar_br(rend_media, 2))
                 st.metric("🏗️ Lojas Cabem", formatar_br(lojas_cabem_valor, 0))
 
+            # --- LÓGICA DE SCORE DE MERCADO (PESO 30) ---
             score_mercado = 0
             if lojas_cabem_valor > 0: score_mercado += 15
             if share_valor_original <= 0.30: score_mercado += 15
+            
             if estado_cidade == "RS":
                 if demanda_cidade < 1200000: score_mercado -= 15
                 if populacao_cidade < 6000: score_mercado -= 15
                 bonus = 0
-                if populacao_cidade > 6000: bonus += 5
-                if demanda_cidade > 1200000: bonus += 5
-                if bonus == 10: bonus = 15
+                if populacao_cidade > 6000: bonus += 4.5
+                if demanda_cidade > 1200000: bonus += 4.5
                 score_mercado += bonus
             elif estado_cidade in ["SC", "PR"]:
                 if demanda_cidade < 2000000: score_mercado -= 15 
                 if populacao_cidade < 15000: score_mercado -= 15 
                 bonus = 0
-                if populacao_cidade > 15000: bonus += 5
-                if demanda_cidade > 2000000: bonus += 5
-                if bonus == 10: bonus = 15
+                if populacao_cidade > 15000: bonus += 4.5
+                if demanda_cidade > 2000000: bonus += 4.5
                 score_mercado += bonus
+            
             score_mercado = max(0, min(30, score_mercado))
 
             st.markdown("---")
@@ -284,8 +256,7 @@ else:
             peso_concorrencia = {"Selecionar": 0, "Baixo": 5, "Médio": 2, "Alto": -5} 
             peso_canibalizacao = {"Selecionar": 0, "Baixo": -2, "Médio": -6, "Alto": -10}
             
-            col_a, col_b = st.columns(2)
-            col_c, col_d = st.columns(2)
+            col_a, col_b = st.columns(2); col_c, col_d = st.columns(2)
             with col_a: f_pess = st.select_slider("Fluxo de pessoas", options=opcoes_padrao, value="Selecionar")
             with col_b: f_veic = st.select_slider("Fluxo de veículos", options=opcoes_padrao, value="Selecionar")
             with col_c: c_rend = st.select_slider("Classificação de renda", options=opcoes_renda, value="Selecionar")
@@ -320,6 +291,7 @@ else:
 
             observacoes = st.text_area("📝 Observações da Vistoria:", height=80)
 
+            # Cálculo Ponto (Teto 70)
             score_ponto_calc = peso_fluxo_pessoas[f_pess] + peso_padrao[f_veic] + peso_renda[c_rend] + peso_padrao[c_popu]
             score_ponto_calc += peso_concorrencia[conc_redes] + peso_concorrencia[conc_indep] + peso_canibalizacao[conc_canib]
             score_ponto_calc += (5 if polo_super else 0) + (4 if polo_pada else 0) + (3 if polo_hosp else 0)
@@ -327,10 +299,7 @@ else:
             
             if char_posicao == "Esquina": score_ponto_calc += 5
             elif char_posicao == "Rótula": score_ponto_calc += 3
-            elif char_posicao == "Meio de quadra":
-                if estado_cidade == "RS": score_ponto_calc += 3
-                elif estado_cidade == "SC": score_ponto_calc -= 3
-                elif estado_cidade == "PR": score_ponto_calc += 3
+            elif char_posicao == "Meio de quadra": score_ponto_calc += 3
 
             if char_acess == "Boa": score_ponto_calc += 3
             elif char_acess == "Ruim": score_ponto_calc -= 5
@@ -343,14 +312,10 @@ else:
             score_ponto = max(0, min(70, score_ponto_calc))
             porcentagem_final = score_mercado + score_ponto
 
-            if porcentagem_final > 90:
-                label_class, txt_recomenda, cor_destaque = "Premium", "Ponto de altíssima prioridade; solicitar estudo.", "#00ffcc"
-            elif porcentagem_final >= 70:
-                label_class, txt_recomenda, cor_destaque = "Favorável", "Ponto sólido; ajustes menores em negociação de aluguel.", "#f1c40f"
-            elif porcentagem_final >= 60:
-                label_class, txt_recomenda, cor_destaque = "Médio Risco", "Requer análise interna; olhar atento às características.", "#e67e22"
-            else:
-                label_class, txt_recomenda, cor_destaque = "Inviável", "Reprovado tecnicamente; alto risco de ROI negativo.", "#ff4b4b"
+            if porcentagem_final > 90: label_class, txt_recomenda, cor_destaque = "Premium", "Ponto de altíssima prioridade; solicitar estudo.", "#00ffcc"
+            elif porcentagem_final >= 70: label_class, txt_recomenda, cor_destaque = "Favorável", "Ponto sólido; ajustes menores em negociação de aluguel.", "#f1c40f"
+            elif porcentagem_final >= 60: label_class, txt_recomenda, cor_destaque = "Médio Risco", "Requer análise interna; olhar atento às características.", "#e67e22"
+            else: label_class, txt_recomenda, cor_destaque = "Inviável", "Reprovado tecnicamente; alto risco de ROI negativo.", "#ff4b4b"
 
             if st.button("📊 AVALIAR"):
                 p_merc_txt = f"{(score_mercado / 30) * 100:.2f}%"
