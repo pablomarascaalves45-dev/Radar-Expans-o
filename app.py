@@ -211,7 +211,7 @@ else:
                 st.metric("🏠 Lojas Atuais", formatar_br(lojas_atuais, 0))
                 st.metric("📈 Demanda", formatar_br(demanda_cidade, 2))
             with col3:
-                st.metric("💰 Renda Média", formatar_br(rend_media, 2))
+                st.metric("💰 Renda Média", formatar_br(renda_media, 2))
                 st.metric("🏗️ Lojas Cabem", formatar_br(lojas_cabem_valor, 0))
 
             # --- LÓGICA DE SCORE DE MERCADO (PESO 30) ---
