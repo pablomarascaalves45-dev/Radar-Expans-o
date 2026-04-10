@@ -216,24 +216,31 @@ else:
 
             # --- LÓGICA DE SCORE DE MERCADO (PESO 30) ---
             score_mercado = 0
-            if lojas_cabem_valor > 0: score_mercado += 15
-            if share_valor_original <= 0.30: score_mercado += 15
             
-            if estado_cidade == "RS":
-                if demanda_cidade < 1200000: score_mercado -= 15
-                if populacao_cidade < 6000: score_mercado -= 15
-                bonus = 0
-                if populacao_cidade > 6000: bonus += 4.5
-                if demanda_cidade > 1200000: bonus += 4.5
-                score_mercado += bonus
-            elif estado_cidade in ["SC", "PR"]:
-                if demanda_cidade < 2000000: score_mercado -= 15 
-                if populacao_cidade < 15000: score_mercado -= 15 
-                bonus = 0
-                if populacao_cidade > 15000: bonus += 4.5
-                if demanda_cidade > 2000000: bonus += 4.5
-                score_mercado += bonus
-            
+            # REGRA DE SATURAÇÃO (Prioridade): Se Share > 60%, a nota é fixada em 15
+            if share_valor_original > 0.60:
+                score_mercado = 15
+            else:
+                # Regras normais para Share <= 60%
+                if lojas_cabem_valor > 0: score_mercado += 15
+                if share_valor_original <= 0.30: score_mercado += 15
+
+                bonus_porte = 0
+                if estado_cidade == "RS":
+                    if demanda_cidade < 1200000: score_mercado -= 15
+                    if populacao_cidade < 6000: score_mercado -= 15
+                    if populacao_cidade > 6000: bonus_porte += 4.5
+                    if demanda_cidade > 1200000: bonus_porte += 4.5
+                    
+                elif estado_cidade in ["SC", "PR"]:
+                    if demanda_cidade < 2000000: score_mercado -= 15 
+                    if populacao_cidade < 15000: score_mercado -= 15 
+                    if populacao_cidade > 15000: bonus_porte += 4.5
+                    if demanda_cidade > 2000000: bonus_porte += 4.5
+                
+                score_mercado += bonus_porte
+
+            # Trava o teto em 30 pontos e o piso em 0
             score_mercado = max(0, min(30, score_mercado))
 
             st.markdown("---")
