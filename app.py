@@ -331,21 +331,25 @@ else:
             score_ponto_calc += (5 if polo_super else 0) + (4 if polo_pada else 0) + (3 if polo_hosp else 0)
             score_ponto_calc += (3 if polo_banc else 0) + (2 if polo_pet else 0) + (3 if polo_fem else 0)
             
-            # --- LÓGICA DE POSIÇÃO (NOVAS REGRAS ESTADOS) ---
+            # --- LÓGICA DE POSIÇÃO (AJUSTADA CONFORME SOLICITAÇÃO) ---
             if char_posicao == "Esquina +": 
                 score_ponto_calc += 7
             elif char_posicao == "Esquina -": 
                 score_ponto_calc += 5
             elif char_posicao == "Rótula": 
                 score_ponto_calc += 4
+            
+            # REGRAS: Meio de quadra < 20m
             elif char_posicao == "Meio de quadra < 20m":
                 if estado_cidade == "SC": score_ponto_calc -= 5
                 elif estado_cidade == "PR": score_ponto_calc -= 3
-                elif estado_cidade == "RS": score_ponto_calc -= 1
+                elif estado_cidade == "RS": score_ponto_calc -= 2 # Ajustado de -1 para -2
+            
+            # REGRAS: Meio de quadra > 20m
             elif char_posicao == "Meio de quadra > 20m":
                 if estado_cidade == "SC": score_ponto_calc -= 3
                 elif estado_cidade == "PR": score_ponto_calc -= 2
-                elif estado_cidade == "RS": score_ponto_calc -= 1
+                elif estado_cidade == "RS": score_ponto_calc += 1 # Ajustado de -1 para +1
 
             # Restante dos cálculos de características
             if char_vagas == ">10": score_ponto_calc += 5
