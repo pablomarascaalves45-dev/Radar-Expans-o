@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 from fpdf import FPDF
-from streamlit_js_eval import get_geolocation
 import datetime
 from PIL import Image
 import io
@@ -89,7 +88,7 @@ else:
             return f"{valor:,.{casas}f}".replace(",", "X").replace(".", ",").replace("X", ".")
         except: return str(valor)
 
-    def exportar_pdf(dados_cidade, endereco, lat_lon, obs, avaliacoes, concorrencia, polos, caracteristicas, foto_arquivo, perc_final, score_mercado, score_ponto, p_merc_txt, p_ponto_txt):
+    def exportar_pdf(dados_cidade, endereco, obs, avaliacoes, concorrencia, polos, caracteristicas, foto_arquivo, perc_final, score_mercado, score_ponto, p_merc_txt, p_ponto_txt):
         pdf = FPDF()
         pdf.add_page()
         pdf.set_margins(10, 10, 10)
@@ -127,7 +126,6 @@ else:
         pdf.cell(0, 5, txt="2. LOCALIZACAO", ln=True)
         pdf.set_font("Arial", "", 8)
         pdf.multi_cell(0, 4, txt=f"Endereco: {str(endereco).encode('latin-1', 'ignore').decode('latin-1')}")
-        pdf.cell(0, 4, txt=f"Coordenadas GPS: {lat_lon}", ln=True)
         
         pdf.ln(2)
         pdf.set_font("Arial", "B", 9)
@@ -239,8 +237,6 @@ else:
             st.markdown("---")
             st.subheader("2. Mídia e Localização")
             endereco = st.text_input("📍 Link ou Endereço do Ponto:")
-            loc = get_geolocation()
-            lat_lon_str = f"{loc['coords']['latitude']}, {loc['coords']['longitude']}" if loc else "Não capturado"
             foto = st.file_uploader("📸 Foto do Imóvel:", type=['jpg', 'jpeg', 'png'])
             
             st.markdown("---")
@@ -250,7 +246,6 @@ else:
             opcoes_sim_nao = ["Selecionar", "Sim", "Não"]
             opcoes_boa_ruim = ["Selecionar", "Boa", "Ruim"]
             
-            # --- NOVAS OPÇÕES AJUSTADAS ---
             opcoes_posicao = ["Selecionar", "Esquina +", "Esquina -", "Meio de quadra > 20m", "Meio de quadra < 20m", "Rótula"]
             opcoes_vagas_novas = ["Selecionar", ">10", "6 á 10", "1 á 5", "Não"]
 
@@ -269,12 +264,12 @@ else:
             st.markdown("<h3 style='text-align: center;'>Características do Ponto</h3>", unsafe_allow_html=True)
             cp1, cp2, cp3 = st.columns(3)
             with cp1: char_local = st.selectbox("Local", options=["Selecionar", "Centro", "Bairro", "Interligação", "Intrabairro"])
-            with cp2: char_posicao = st.selectbox("Posição", options=opcoes_posicao) # Widget Ajustado
+            with cp2: char_posicao = st.selectbox("Posição", options=opcoes_posicao)
             with cp3: char_visib = st.selectbox("Visibilidade", options=opcoes_boa_ruim)
             
             cp4, cp5, cp6 = st.columns(3)
             with cp4: char_acess = st.selectbox("Acessibilidade", options=opcoes_boa_ruim)
-            with cp5: char_vagas = st.selectbox("Vagas", options=opcoes_vagas_novas) # Widget Ajustado
+            with cp5: char_vagas = st.selectbox("Vagas", options=opcoes_vagas_novas)
             with cp6: char_solar = st.selectbox("Posição Solar", options=opcoes_boa_ruim)
 
             st.markdown("<h3 style='text-align: center;'>Concorrência</h3>", unsafe_allow_html=True)
@@ -295,20 +290,18 @@ else:
 
             observacoes = st.text_area("📝 Observações da Vistoria:", height=80)
 
-            # --- CÁLCULO PONTO (Teto 70) ---
+            # --- CÁLCULO PONTO ---
             score_ponto_calc = peso_fluxo_pessoas[f_pess] + peso_padrao[f_veic] + peso_renda[c_rend] + peso_padrao[c_popu]
             score_ponto_calc += peso_concorrencia[conc_redes] + peso_concorrencia[conc_indep] + peso_canibalizacao[conc_canib]
             score_ponto_calc += (5 if polo_super else 0) + (4 if polo_pada else 0) + (3 if polo_hosp else 0)
             score_ponto_calc += (3 if polo_banc else 0) + (2 if polo_pet else 0) + (3 if polo_fem else 0)
             
-            # Lógica de Pontuação Ajustada para as Novas Opções de POSIÇÃO
             if char_posicao == "Esquina +": score_ponto_calc += 7
             elif char_posicao == "Esquina -": score_ponto_calc += 5
             elif char_posicao == "Rótula": score_ponto_calc += 4
             elif char_posicao == "Meio de quadra > 20m": score_ponto_calc += 3
             elif char_posicao == "Meio de quadra < 20m": score_ponto_calc += 1
 
-            # Lógica de Pontuação Ajustada para as Novas Opções de VAGAS
             if char_vagas == ">10": score_ponto_calc += 5
             elif char_vagas == "6 á 10": score_ponto_calc += 3
             elif char_vagas == "1 á 5": score_ponto_calc += 1
@@ -348,7 +341,7 @@ else:
                 pol = {"Super": polo_super, "Padaria": polo_pada, "Hospital": polo_hosp, "Bancos": polo_banc, "Pet": polo_pet, "Fem": polo_fem}
                 caract = {"Local": char_local, "Posicao": char_posicao, "Visib": char_visib, "Acess": char_acess, "Vagas": char_vagas, "Sol": char_solar}
 
-                pdf_bytes = exportar_pdf(dados, endereco, lat_lon_str, observacoes, aval, conc, pol, caract, foto, f"{porcentagem_final:.2f}% ({label_class})", score_mercado, score_ponto, p_merc_txt, p_ponto_txt)
+                pdf_bytes = exportar_pdf(dados, endereco, observacoes, aval, conc, pol, caract, foto, f"{porcentagem_final:.2f}% ({label_class})", score_mercado, score_ponto, p_merc_txt, p_ponto_txt)
                 st.download_button(label="🚀 Baixar Relatório PDF", data=pdf_bytes, file_name=f"Relatorio_{cidade_selecionada}.pdf", mime="application/pdf")
         else:
             st.info("Por favor, selecione um município.")
