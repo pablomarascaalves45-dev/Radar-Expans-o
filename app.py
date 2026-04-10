@@ -175,17 +175,35 @@ else:
         pdf.multi_cell(60, 4, txt=str(obs).encode('latin-1', 'ignore').decode('latin-1'))
         y_final_col3 = pdf.get_y()
 
-        # Definir posição para a foto (abaixo da coluna mais longa)
-        pdf.set_y(max(y_final_col1, y_final_col2, y_final_col3) + 10)
+        # --- 4. FOTO DO PONTO ---
+        y_apos_tecnico = max(y_final_col1, y_final_col2, y_final_col3)
+        pdf.set_y(y_apos_tecnico + 8)
+        pdf.set_font("Arial", "B", 10)
+        pdf.cell(0, 5, txt="4. FOTO DO PONTO", ln=True)
+        pdf.ln(4) 
 
-        # FOTO
         if foto_arquivo:
             try:
                 img = Image.open(foto_arquivo)
                 if img.mode in ("RGBA", "P"): img = img.convert("RGB")
+                
+                # Cálculo de dimensões para ocupação máxima sem quebrar página
+                largura_disponivel = 190 
+                altura_disponivel = 280 - pdf.get_y() - 10 
+                
+                w_orig, h_orig = img.size
+                proporcao = h_orig / w_orig
+                
+                largura_final = largura_disponivel
+                altura_final = largura_final * proporcao
+                
+                if altura_final > altura_disponivel:
+                    altura_final = altura_disponivel
+                    largura_final = altura_final / proporcao
+
                 img_path = "temp_pdf_foto.jpg"
-                img.save(img_path, quality=80)
-                pdf.image(img_path, x=10, y=pdf.get_y(), w=110)
+                img.save(img_path, quality=85)
+                pdf.image(img_path, x=10, y=pdf.get_y(), w=largura_final)
                 os.remove(img_path)
             except: pass
             
@@ -223,7 +241,6 @@ else:
             estado_cidade = dados.get('UF', '')
             with col_uf: st.text_input("Estado:", value=estado_cidade, disabled=True)
             
-            # Dados métricos
             populacao_cidade = dados.get('População', 0)
             lojas_atuais = dados.get('N° FSJ', 0)
             lojas_cabem_valor = dados.get('Lojas Cabem', 0)
@@ -242,7 +259,6 @@ else:
                 st.metric("💰 Renda Média", formatar_br(renda_media, 2))
                 st.metric("🏗️ Lojas Cabem", formatar_br(lojas_cabem_valor, 0))
 
-            # --- CÁLCULO SCORE MERCADO (30%) ---
             score_mercado = 0
             if lojas_cabem_valor > 0: score_mercado += 15
             if share_valor_original <= 0.30: score_mercado += 15
@@ -318,7 +334,6 @@ else:
 
             observacoes = st.text_area("📝 Observações da Vistoria:", height=80)
 
-            # --- CÁLCULO PONTO (70%) ---
             score_ponto_calc = peso_fluxo_pessoas[f_pess] + peso_padrao[f_veic] + peso_renda[c_rend] + peso_padrao[c_popu]
             score_ponto_calc += peso_concorrencia[conc_redes] + peso_concorrencia[conc_indep] + peso_canibalizacao[conc_canib]
             score_ponto_calc += (5 if polo_super else 0) + (4 if polo_pada else 0) + (3 if polo_hosp else 0)
