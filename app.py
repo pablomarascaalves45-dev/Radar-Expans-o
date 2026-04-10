@@ -249,6 +249,10 @@ else:
             opcoes_renda = ["Selecionar", "Baixa", "Média", "Alta"]
             opcoes_sim_nao = ["Selecionar", "Sim", "Não"]
             opcoes_boa_ruim = ["Selecionar", "Boa", "Ruim"]
+            
+            # --- NOVAS OPÇÕES AJUSTADAS ---
+            opcoes_posicao = ["Selecionar", "Esquina +", "Esquina -", "Meio de quadra > 20m", "Meio de quadra < 20m", "Rótula"]
+            opcoes_vagas_novas = ["Selecionar", ">10", "6 á 10", "1 á 5", "Não"]
 
             peso_fluxo_pessoas = {"Selecionar": 0, "Baixo": 5, "Médio": 10, "Alto": 15}
             peso_padrao = {"Selecionar": 0, "Baixo": 1, "Médio": 3, "Alto": 5}
@@ -265,12 +269,12 @@ else:
             st.markdown("<h3 style='text-align: center;'>Características do Ponto</h3>", unsafe_allow_html=True)
             cp1, cp2, cp3 = st.columns(3)
             with cp1: char_local = st.selectbox("Local", options=["Selecionar", "Centro", "Bairro", "Interligação", "Intrabairro"])
-            with cp2: char_posicao = st.selectbox("Posição", options=["Selecionar", "Esquina", "Rótula", "Meio de quadra"])
+            with cp2: char_posicao = st.selectbox("Posição", options=opcoes_posicao) # Widget Ajustado
             with cp3: char_visib = st.selectbox("Visibilidade", options=opcoes_boa_ruim)
             
             cp4, cp5, cp6 = st.columns(3)
             with cp4: char_acess = st.selectbox("Acessibilidade", options=opcoes_boa_ruim)
-            with cp5: char_vagas = st.selectbox("Vagas", options=opcoes_sim_nao)
+            with cp5: char_vagas = st.selectbox("Vagas", options=opcoes_vagas_novas) # Widget Ajustado
             with cp6: char_solar = st.selectbox("Posição Solar", options=opcoes_boa_ruim)
 
             st.markdown("<h3 style='text-align: center;'>Concorrência</h3>", unsafe_allow_html=True)
@@ -291,20 +295,27 @@ else:
 
             observacoes = st.text_area("📝 Observações da Vistoria:", height=80)
 
-            # Cálculo Ponto (Teto 70)
+            # --- CÁLCULO PONTO (Teto 70) ---
             score_ponto_calc = peso_fluxo_pessoas[f_pess] + peso_padrao[f_veic] + peso_renda[c_rend] + peso_padrao[c_popu]
             score_ponto_calc += peso_concorrencia[conc_redes] + peso_concorrencia[conc_indep] + peso_canibalizacao[conc_canib]
             score_ponto_calc += (5 if polo_super else 0) + (4 if polo_pada else 0) + (3 if polo_hosp else 0)
             score_ponto_calc += (3 if polo_banc else 0) + (2 if polo_pet else 0) + (3 if polo_fem else 0)
             
-            if char_posicao == "Esquina": score_ponto_calc += 5
-            elif char_posicao == "Rótula": score_ponto_calc += 3
-            elif char_posicao == "Meio de quadra": score_ponto_calc += 3
+            # Lógica de Pontuação Ajustada para as Novas Opções de POSIÇÃO
+            if char_posicao == "Esquina +": score_ponto_calc += 7
+            elif char_posicao == "Esquina -": score_ponto_calc += 5
+            elif char_posicao == "Rótula": score_ponto_calc += 4
+            elif char_posicao == "Meio de quadra > 20m": score_ponto_calc += 3
+            elif char_posicao == "Meio de quadra < 20m": score_ponto_calc += 1
+
+            # Lógica de Pontuação Ajustada para as Novas Opções de VAGAS
+            if char_vagas == ">10": score_ponto_calc += 5
+            elif char_vagas == "6 á 10": score_ponto_calc += 3
+            elif char_vagas == "1 á 5": score_ponto_calc += 1
+            elif char_vagas == "Não": score_ponto_calc -= 5
 
             if char_acess == "Boa": score_ponto_calc += 3
             elif char_acess == "Ruim": score_ponto_calc -= 5
-            if char_vagas == "Sim": score_ponto_calc += 3
-            elif char_vagas == "Não": score_ponto_calc -= 5
             if char_visib == "Boa": score_ponto_calc += 3
             elif char_visib == "Ruim": score_ponto_calc -= 3
             if char_solar == "Boa": score_ponto_calc += 2
