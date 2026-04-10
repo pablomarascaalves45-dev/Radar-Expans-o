@@ -92,23 +92,29 @@ else:
         pdf = FPDF()
         pdf.add_page()
         pdf.set_margins(10, 10, 10)
+        
+        # Cabeçalho
         pdf.set_font("Arial", "B", 12)
         pdf.cell(0, 6, txt="Relatorio de Expansao - Analise de Ponto", ln=True, align='C')
         
+        # Barra de Aderência
         pdf.set_fill_color(30, 33, 48)
         pdf.set_text_color(255, 255, 255)
         pdf.set_font("Arial", "B", 10)
         pdf.cell(0, 8, txt=f"ADERENCIA TOTAL: {perc_final}", ln=True, align='C', fill=True)
         
+        # Sub-barra de scores
         pdf.set_fill_color(240, 240, 240)
         pdf.set_text_color(50, 50, 50)
         pdf.cell(0, 6, txt=f"Mercado da Cidade: {p_merc_txt}  |  Dados do Ponto: {p_ponto_txt}", ln=True, align='C', fill=True)
         
         pdf.set_text_color(0, 0, 0)
-        pdf.ln(2)
-        pdf.set_font("Arial", "B", 9)
+        pdf.ln(4)
+
+        # 1. DADOS DO MERCADO
+        pdf.set_font("Arial", "B", 10)
         pdf.cell(0, 5, txt="1. DADOS DO MERCADO", ln=True)
-        pdf.set_font("Arial", "", 8)
+        pdf.set_font("Arial", "", 9)
         municipio = str(dados_cidade.get('Município', 'N/A')).encode('latin-1', 'ignore').decode('latin-1')
         pdf.cell(0, 5, txt=f"Cidade: {municipio} - {dados_cidade.get('UF', '')}", ln=True)
         
@@ -121,45 +127,70 @@ else:
         pdf.cell(col_w, 5, txt=f"Demanda: {formatar_br(dados_cidade.get('Demanda', 0), 2)}", ln=0)
         pdf.cell(col_w, 5, txt=f"Lojas Cabem: {formatar_br(dados_cidade.get('Lojas Cabem', 0), 0)}", ln=1)
         
-        pdf.ln(2)
-        pdf.set_font("Arial", "B", 9)
+        pdf.ln(4)
+
+        # 2. LOCALIZACAO
+        pdf.set_font("Arial", "B", 10)
         pdf.cell(0, 5, txt="2. LOCALIZACAO", ln=True)
-        pdf.set_font("Arial", "", 8)
+        pdf.set_font("Arial", "", 9)
         pdf.multi_cell(0, 4, txt=f"Endereco: {str(endereco).encode('latin-1', 'ignore').decode('latin-1')}")
         
-        pdf.ln(2)
-        pdf.set_font("Arial", "B", 9)
+        pdf.ln(4)
+
+        # 3. ANALISE TECNICA DO PONTO
+        pdf.set_font("Arial", "B", 10)
         pdf.cell(0, 5, txt="3. ANALISE TECNICA DO PONTO", ln=True)
-        y_antes = pdf.get_y()
-        pdf.set_font("Arial", "B", 7)
-        pdf.cell(95, 4, txt="FLUXOS E CONCORRENCIA", ln=True)
-        pdf.set_font("Arial", "", 7)
-        for k, v in avaliacoes.items(): pdf.cell(95, 3.5, txt=f"- {k}: {v}", ln=True)
-        for k, v in concorrencia.items(): pdf.cell(95, 3.5, txt=f"- {k}: {v}", ln=True)
         
-        pdf.set_y(y_antes); pdf.set_x(105)
-        pdf.set_font("Arial", "B", 7)
-        pdf.cell(95, 4, txt="CARACTERISTICAS E POLOS", ln=True)
-        pdf.set_font("Arial", "", 7)
+        y_inicial_analise = pdf.get_y()
+        
+        # COLUNA ESQUERDA: Fluxos e Concorrência
+        pdf.set_font("Arial", "B", 8)
+        pdf.cell(95, 5, txt="FLUXOS E CONCORRENCIA", ln=True)
+        pdf.set_font("Arial", "", 8)
+        for k, v in avaliacoes.items():
+            pdf.cell(95, 4, txt=f"- {k}: {v}", ln=True)
+        for k, v in concorrencia.items():
+            pdf.cell(95, 4, txt=f"- {k}: {v}", ln=True)
+        
+        y_final_col_esq = pdf.get_y()
+
+        # COLUNA DIREITA: Características e Polos
+        pdf.set_y(y_inicial_analise)
+        pdf.set_x(105) # Posiciona na segunda coluna
+        pdf.set_font("Arial", "B", 8)
+        pdf.cell(95, 5, txt="CARACTERISTICAS E POLOS", ln=True)
+        pdf.set_font("Arial", "", 8)
         for k, v in caracteristicas.items():
             pdf.set_x(105)
-            pdf.cell(95, 3.5, txt=f"- {k}: {v}", ln=True)
+            pdf.cell(95, 4, txt=f"- {k}: {v}", ln=True)
         
+        # OBSERVAÇÕES (Abaixo das Características, na coluna da direita)
         pdf.ln(2)
+        pdf.set_x(105)
         pdf.set_font("Arial", "B", 8)
-        pdf.cell(0, 4, txt="OBSERVACOES DA VISTORIA:", ln=True)
-        pdf.set_font("Arial", "", 7)
-        pdf.multi_cell(0, 3.5, txt=str(obs).encode('latin-1', 'ignore').decode('latin-1'))
+        pdf.cell(95, 5, txt="OBSERVACOES DA VISTORIA:", ln=True)
+        pdf.set_font("Arial", "", 8)
+        pdf.set_x(105)
+        # Multi_cell na coluna da direita
+        pdf.multi_cell(95, 4, txt=str(obs).encode('latin-1', 'ignore').decode('latin-1'))
+        
+        y_final_col_dir = pdf.get_y()
 
+        # Define o Y para a próxima seção (o maior entre as duas colunas)
+        pdf.set_y(max(y_final_col_esq, y_final_col_dir) + 5)
+
+        # FOTO
         if foto_arquivo:
             try:
                 img = Image.open(foto_arquivo)
                 if img.mode in ("RGBA", "P"): img = img.convert("RGB")
                 img_path = "temp_pdf_foto.jpg"
                 img.save(img_path, quality=80)
-                pdf.image(img_path, x=10, y=pdf.get_y()+5, w=100)
+                # Tenta centralizar a foto ou colocar abaixo da análise
+                pdf.image(img_path, x=10, y=pdf.get_y(), w=110)
                 os.remove(img_path)
             except: pass
+            
         return pdf.output(dest='S').encode('latin-1', errors='replace')
 
     @st.cache_data
@@ -212,7 +243,7 @@ else:
                 st.metric("💰 Renda Média", formatar_br(renda_media, 2))
                 st.metric("🏗️ Lojas Cabem", formatar_br(lojas_cabem_valor, 0))
 
-            # --- LÓGICA DE SCORE DE MERCADO (PESO 30) ---
+            # --- LÓGICA DE SCORE DE MERCADO ---
             score_mercado = 0
             if lojas_cabem_valor > 0: score_mercado += 15
             if share_valor_original <= 0.30: score_mercado += 15
@@ -243,9 +274,7 @@ else:
             st.subheader("3. Dados do Ponto")
             opcoes_padrao = ["Selecionar", "Baixo", "Médio", "Alto"]
             opcoes_renda = ["Selecionar", "Baixa", "Média", "Alta"]
-            opcoes_sim_nao = ["Selecionar", "Sim", "Não"]
             opcoes_boa_ruim = ["Selecionar", "Boa", "Ruim"]
-            
             opcoes_posicao = ["Selecionar", "Esquina +", "Esquina -", "Meio de quadra > 20m", "Meio de quadra < 20m", "Rótula"]
             opcoes_vagas_novas = ["Selecionar", ">10", "6 á 10", "1 á 5", "Não"]
 
@@ -338,10 +367,26 @@ else:
 
                 aval = {"Fluxo Pessoas": f_pess, "Fluxo Veiculos": f_veic, "Renda": c_rend, "Concentracao": c_popu}
                 conc = {"Redes": conc_redes, "Independentes": conc_indep, "Canibalizacao": conc_canib}
-                pol = {"Super": polo_super, "Padaria": polo_pada, "Hospital": polo_hosp, "Bancos": polo_banc, "Pet": polo_pet, "Fem": polo_fem}
-                caract = {"Local": char_local, "Posicao": char_posicao, "Visib": char_visib, "Acess": char_acess, "Vagas": char_vagas, "Sol": char_solar}
+                # Simplificação para o PDF (polos em lista curta)
+                pol_ativos = []
+                if polo_super: pol_ativos.append("Super")
+                if polo_pada: pol_ativos.append("Padaria")
+                if polo_hosp: pol_ativos.append("Hospital")
+                if polo_banc: pol_ativos.append("Bancos")
+                if polo_pet: pol_ativos.append("Pet")
+                if polo_fem: pol_ativos.append("Lojas Fem")
+                
+                caract = {
+                    "Local": char_local, 
+                    "Posicao": char_posicao, 
+                    "Visib": char_visib, 
+                    "Acess": char_acess, 
+                    "Vagas": char_vagas, 
+                    "Sol": char_solar,
+                    "Polos": ", ".join(pol_ativos) if pol_ativos else "Nenhum"
+                }
 
-                pdf_bytes = exportar_pdf(dados, endereco, observacoes, aval, conc, pol, caract, foto, f"{porcentagem_final:.2f}% ({label_class})", score_mercado, score_ponto, p_merc_txt, p_ponto_txt)
+                pdf_bytes = exportar_pdf(dados, endereco, observacoes, aval, conc, pol_ativos, caract, foto, f"{porcentagem_final:.2f}% ({label_class})", score_mercado, score_ponto, p_merc_txt, p_ponto_txt)
                 st.download_button(label="🚀 Baixar Relatório PDF", data=pdf_bytes, file_name=f"Relatorio_{cidade_selecionada}.pdf", mime="application/pdf")
         else:
             st.info("Por favor, selecione um município.")
