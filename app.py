@@ -61,7 +61,7 @@ else:
         st.session_state.logado = False
         st.rerun()
 
-    # --- ESTILIZAÇÃO ---
+    # --- ESTILIZAÇÃO UI STREAMLIT ---
     st.markdown("""
         <style>
         [data-testid="stMetricValue"] { font-size: 1.6rem !important; }
@@ -132,52 +132,51 @@ else:
         # 2. LOCALIZACAO
         pdf.set_font("Arial", "B", 10)
         pdf.cell(0, 5, txt="2. LOCALIZACAO", ln=True)
-        pdf.set_font("Arial", "", 9)
+        pdf.set_font("Arial", "", 8)
         pdf.multi_cell(0, 4, txt=f"Endereco: {str(endereco).encode('latin-1', 'ignore').decode('latin-1')}")
         
         pdf.ln(4)
 
-        # 3. ANALISE TECNICA DO PONTO
+        # 3. ANALISE TECNICA DO PONTO (LAYOUT EM 3 COLUNAS)
         pdf.set_font("Arial", "B", 10)
         pdf.cell(0, 5, txt="3. ANALISE TECNICA DO PONTO", ln=True)
+        pdf.ln(2)
         
-        y_inicial_analise = pdf.get_y()
-        
-        # COLUNA ESQUERDA: Fluxos e Concorrência
+        y_topo_tecnico = pdf.get_y()
+
+        # --- COLUNA 1: FLUXOS E CONCORRENCIA (Esquerda) ---
         pdf.set_font("Arial", "B", 8)
-        pdf.cell(95, 5, txt="FLUXOS E CONCORRENCIA", ln=True)
+        pdf.cell(60, 5, txt="FLUXOS E CONCORRENCIA", ln=True)
         pdf.set_font("Arial", "", 8)
         for k, v in avaliacoes.items():
-            pdf.cell(95, 4, txt=f"- {k}: {v}", ln=True)
+            pdf.cell(60, 4, txt=f"- {k}: {v}", ln=True)
         for k, v in concorrencia.items():
-            pdf.cell(95, 4, txt=f"- {k}: {v}", ln=True)
-        
-        y_final_col_esq = pdf.get_y()
+            pdf.cell(60, 4, txt=f"- {k}: {v}", ln=True)
+        y_final_col1 = pdf.get_y()
 
-        # COLUNA DIREITA: Características e Polos
-        pdf.set_y(y_inicial_analise)
-        pdf.set_x(105) # Posiciona na segunda coluna
+        # --- COLUNA 2: CARACTERISTICAS E POLOS (Meio) ---
+        pdf.set_y(y_topo_tecnico)
+        pdf.set_x(75)
         pdf.set_font("Arial", "B", 8)
-        pdf.cell(95, 5, txt="CARACTERISTICAS E POLOS", ln=True)
+        pdf.cell(60, 5, txt="CARACTERISTICAS E POLOS", ln=True)
         pdf.set_font("Arial", "", 8)
         for k, v in caracteristicas.items():
-            pdf.set_x(105)
-            pdf.cell(95, 4, txt=f"- {k}: {v}", ln=True)
-        
-        # OBSERVAÇÕES (Abaixo das Características, na coluna da direita)
-        pdf.ln(2)
-        pdf.set_x(105)
-        pdf.set_font("Arial", "B", 8)
-        pdf.cell(95, 5, txt="OBSERVACOES DA VISTORIA:", ln=True)
-        pdf.set_font("Arial", "", 8)
-        pdf.set_x(105)
-        # Multi_cell na coluna da direita
-        pdf.multi_cell(95, 4, txt=str(obs).encode('latin-1', 'ignore').decode('latin-1'))
-        
-        y_final_col_dir = pdf.get_y()
+            pdf.set_x(75)
+            pdf.cell(60, 4, txt=f"- {k}: {v}", ln=True)
+        y_final_col2 = pdf.get_y()
 
-        # Define o Y para a próxima seção (o maior entre as duas colunas)
-        pdf.set_y(max(y_final_col_esq, y_final_col_dir) + 5)
+        # --- COLUNA 3: OBSERVACOES DA VISTORIA (Direita) ---
+        pdf.set_y(y_topo_tecnico)
+        pdf.set_x(140)
+        pdf.set_font("Arial", "B", 8)
+        pdf.cell(60, 5, txt="OBSERVACOES DA VISTORIA:", ln=True)
+        pdf.set_font("Arial", "", 8)
+        pdf.set_x(140)
+        pdf.multi_cell(60, 4, txt=str(obs).encode('latin-1', 'ignore').decode('latin-1'))
+        y_final_col3 = pdf.get_y()
+
+        # Definir posição para a foto (abaixo da coluna mais longa)
+        pdf.set_y(max(y_final_col1, y_final_col2, y_final_col3) + 10)
 
         # FOTO
         if foto_arquivo:
@@ -186,7 +185,6 @@ else:
                 if img.mode in ("RGBA", "P"): img = img.convert("RGB")
                 img_path = "temp_pdf_foto.jpg"
                 img.save(img_path, quality=80)
-                # Tenta centralizar a foto ou colocar abaixo da análise
                 pdf.image(img_path, x=10, y=pdf.get_y(), w=110)
                 os.remove(img_path)
             except: pass
@@ -225,6 +223,7 @@ else:
             estado_cidade = dados.get('UF', '')
             with col_uf: st.text_input("Estado:", value=estado_cidade, disabled=True)
             
+            # Dados métricos
             populacao_cidade = dados.get('População', 0)
             lojas_atuais = dados.get('N° FSJ', 0)
             lojas_cabem_valor = dados.get('Lojas Cabem', 0)
@@ -243,7 +242,7 @@ else:
                 st.metric("💰 Renda Média", formatar_br(renda_media, 2))
                 st.metric("🏗️ Lojas Cabem", formatar_br(lojas_cabem_valor, 0))
 
-            # --- LÓGICA DE SCORE DE MERCADO ---
+            # --- CÁLCULO SCORE MERCADO (30%) ---
             score_mercado = 0
             if lojas_cabem_valor > 0: score_mercado += 15
             if share_valor_original <= 0.30: score_mercado += 15
@@ -319,7 +318,7 @@ else:
 
             observacoes = st.text_area("📝 Observações da Vistoria:", height=80)
 
-            # --- CÁLCULO PONTO ---
+            # --- CÁLCULO PONTO (70%) ---
             score_ponto_calc = peso_fluxo_pessoas[f_pess] + peso_padrao[f_veic] + peso_renda[c_rend] + peso_padrao[c_popu]
             score_ponto_calc += peso_concorrencia[conc_redes] + peso_concorrencia[conc_indep] + peso_canibalizacao[conc_canib]
             score_ponto_calc += (5 if polo_super else 0) + (4 if polo_pada else 0) + (3 if polo_hosp else 0)
@@ -367,7 +366,7 @@ else:
 
                 aval = {"Fluxo Pessoas": f_pess, "Fluxo Veiculos": f_veic, "Renda": c_rend, "Concentracao": c_popu}
                 conc = {"Redes": conc_redes, "Independentes": conc_indep, "Canibalizacao": conc_canib}
-                # Simplificação para o PDF (polos em lista curta)
+                
                 pol_ativos = []
                 if polo_super: pol_ativos.append("Super")
                 if polo_pada: pol_ativos.append("Padaria")
