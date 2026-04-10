@@ -14,9 +14,17 @@ USUARIOS_AUTORIZADOS = {
     "Pablo": "55997260245",
     "Lucas": "5499206706",
     "Eduardo": "5499865084",
-    "Eduardo_Cel": "5496733252",
-    "Estevam": "5496964416",
-    "Gabriel": "54997114483"
+    "Eduardo Pedroso": "5496733252",
+    "Estevam": "5496964416",    
+    "Laércio": "5492130467",
+    "Rocha": "4491332648",
+    "Gabriel": "5497114483",
+    "Juliano": "5481345155",
+    "Laerti": "5492371861",
+    "Luan": "5496001432",
+    "Naudal": "5181285090",
+    
+    
 }
 
 if 'logado' not in st.session_state:
