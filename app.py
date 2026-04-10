@@ -137,14 +137,13 @@ else:
         
         pdf.ln(4)
 
-        # 3. ANALISE TECNICA DO PONTO (LAYOUT EM 3 COLUNAS)
+        # 3. ANALISE TECNICA DO PONTO
         pdf.set_font("Arial", "B", 10)
         pdf.cell(0, 5, txt="3. ANALISE TECNICA DO PONTO", ln=True)
         pdf.ln(2)
         
         y_topo_tecnico = pdf.get_y()
 
-        # --- COLUNA 1: FLUXOS E CONCORRENCIA (Esquerda) ---
         pdf.set_font("Arial", "B", 8)
         pdf.cell(60, 5, txt="FLUXOS E CONCORRENCIA", ln=True)
         pdf.set_font("Arial", "", 8)
@@ -154,7 +153,6 @@ else:
             pdf.cell(60, 4, txt=f"- {k}: {v}", ln=True)
         y_final_col1 = pdf.get_y()
 
-        # --- COLUNA 2: CARACTERISTICAS E POLOS (Meio) ---
         pdf.set_y(y_topo_tecnico)
         pdf.set_x(75)
         pdf.set_font("Arial", "B", 8)
@@ -165,7 +163,6 @@ else:
             pdf.cell(60, 4, txt=f"- {k}: {v}", ln=True)
         y_final_col2 = pdf.get_y()
 
-        # --- COLUNA 3: OBSERVACOES DA VISTORIA (Direita) ---
         pdf.set_y(y_topo_tecnico)
         pdf.set_x(140)
         pdf.set_font("Arial", "B", 8)
@@ -186,21 +183,15 @@ else:
             try:
                 img = Image.open(foto_arquivo)
                 if img.mode in ("RGBA", "P"): img = img.convert("RGB")
-                
-                # Cálculo de dimensões para ocupação máxima sem quebrar página
                 largura_disponivel = 190 
                 altura_disponivel = 280 - pdf.get_y() - 10 
-                
                 w_orig, h_orig = img.size
                 proporcao = h_orig / w_orig
-                
                 largura_final = largura_disponivel
                 altura_final = largura_final * proporcao
-                
                 if altura_final > altura_disponivel:
                     altura_final = altura_disponivel
                     largura_final = altura_final / proporcao
-
                 img_path = "temp_pdf_foto.jpg"
                 img.save(img_path, quality=85)
                 pdf.image(img_path, x=10, y=pdf.get_y(), w=largura_final)
@@ -334,17 +325,29 @@ else:
 
             observacoes = st.text_area("📝 Observações da Vistoria:", height=80)
 
+            # Cálculo de Score Base
             score_ponto_calc = peso_fluxo_pessoas[f_pess] + peso_padrao[f_veic] + peso_renda[c_rend] + peso_padrao[c_popu]
             score_ponto_calc += peso_concorrencia[conc_redes] + peso_concorrencia[conc_indep] + peso_canibalizacao[conc_canib]
             score_ponto_calc += (5 if polo_super else 0) + (4 if polo_pada else 0) + (3 if polo_hosp else 0)
             score_ponto_calc += (3 if polo_banc else 0) + (2 if polo_pet else 0) + (3 if polo_fem else 0)
             
-            if char_posicao == "Esquina +": score_ponto_calc += 7
-            elif char_posicao == "Esquina -": score_ponto_calc += 5
-            elif char_posicao == "Rótula": score_ponto_calc += 4
-            elif char_posicao == "Meio de quadra > 20m": score_ponto_calc += 3
-            elif char_posicao == "Meio de quadra < 20m": score_ponto_calc += 1
+            # --- LÓGICA DE POSIÇÃO (NOVAS REGRAS ESTADOS) ---
+            if char_posicao == "Esquina +": 
+                score_ponto_calc += 7
+            elif char_posicao == "Esquina -": 
+                score_ponto_calc += 5
+            elif char_posicao == "Rótula": 
+                score_ponto_calc += 4
+            elif char_posicao == "Meio de quadra < 20m":
+                if estado_cidade == "SC": score_ponto_calc -= 5
+                elif estado_cidade == "PR": score_ponto_calc -= 3
+                elif estado_cidade == "RS": score_ponto_calc -= 1
+            elif char_posicao == "Meio de quadra > 20m":
+                if estado_cidade == "SC": score_ponto_calc -= 3
+                elif estado_cidade == "PR": score_ponto_calc -= 2
+                elif estado_cidade == "RS": score_ponto_calc -= 1
 
+            # Restante dos cálculos de características
             if char_vagas == ">10": score_ponto_calc += 5
             elif char_vagas == "6 á 10": score_ponto_calc += 3
             elif char_vagas == "1 á 5": score_ponto_calc += 1
