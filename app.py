@@ -12,7 +12,7 @@ st.set_page_config(page_title="Radar de Expansão", layout="centered")
 # --- SISTEMA DE LOGIN ---
 USUARIOS_AUTORIZADOS = {
     "Pablo": "55997260245",
-    "Lucas": "5499206706",
+    "Lucas": "257030",
     "Eduardo": "5499865084",
     "Eduardo Pedroso": "5496733252",
     "Estevam": "5496964416",    
