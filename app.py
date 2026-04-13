@@ -23,6 +23,7 @@ USUARIOS_AUTORIZADOS = {
     "Laerti": "5492371861",
     "Luan": "5496001432",
     "Naudal": "5181285090",
+    "Gabriel": "54997114483",
 }
 
 if 'logado' not in st.session_state:
