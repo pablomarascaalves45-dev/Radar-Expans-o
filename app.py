@@ -14,7 +14,7 @@ USUARIOS_AUTORIZADOS = {
     "Pablo": "55997260245",
     "Lucas": "257030",
     "Eduardo": "5499865084",
-    "Eduardo Pedroso": "5496733252",
+    "Eduardo Pedroso": "1702",
     "Estevam": "5496964416",    
     "Laércio": "5492130467",
     "Rocha": "4491332648",
