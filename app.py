@@ -33,7 +33,11 @@ TIMES_AUTORIZADOS = {
     },
     "Time Laerti": {
         "Laerti": "5492371861",
-        "": "5492371861",
+        "Andre Jaime": "5491828716",
+        "Larissa dos Santos": "5491828716",
+        "Luiz Kuhn": "5492086338",
+        "Fabio Baldasso": "5491454817",
+        "Cleiton de Lima": "5492092524",
         
     }
 }
