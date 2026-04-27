@@ -19,15 +19,21 @@ TIMES_AUTORIZADOS = {
         "Estevam": "5496964416",    
         "Laércio": "5492130467",
         "Rocha": "4491332648",
-    },
-    "Time Cintia": {
         "Juliano": "5481345155",
         "Gabriel": "54997114483",
         "Luan": "5496001432",
+        "Naudal": "5181285090",
+    },
+    "Time Cintia": {
+        "Cintia": "5491455202",
+        "Juliano Petrarca": "5491092683",
+        "Fais Abdalla": "5497059493",
+        "Tiago Machado": "5496756992",
+        "Rodrigo Ferreira": "5491145900",
     },
     "Time Laerti": {
         "Laerti": "5492371861",
-        "Naudal": "5181285090",
+        
     }
 }
 
