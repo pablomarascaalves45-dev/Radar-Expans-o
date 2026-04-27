@@ -9,7 +9,7 @@ import os
 # 1. Configuração da página
 st.set_page_config(page_title="Radar de Expansão", layout="centered")
 
-# --- SISTEMA DE LOGIN POR TIMES ---
+# --- SISTEMA DE LOGIN ---
 TIMES_AUTORIZADOS = {
     "Expansão": {
         "Pablo": "55997260245",
@@ -52,21 +52,24 @@ def tela_login():
         st.title("🔐 Acesso Restrito")
         st.subheader("Radar de Expansão")
         
-        # Seleção de Time
-        time_selecionado = st.selectbox("Selecione seu Time", options=list(TIMES_AUTORIZADOS.keys()))
-        
         nome_input = st.text_input("Nome Completo")
         celular_input = st.text_input("Número de Celular (com DDD)", placeholder="Ex: 519XXXXXXXX")
         
         if st.button("ENTRAR"):
-            usuarios_do_time = TIMES_AUTORIZADOS[time_selecionado]
-            if nome_input in usuarios_do_time and usuarios_do_time[nome_input] == celular_input:
-                st.session_state.logado = True
-                st.session_state.usuario_nome = nome_input
-                st.session_state.usuario_time = time_selecionado
+            usuario_encontrado = False
+            # Busca em todos os times sem precisar selecionar
+            for time_nome, usuarios in TIMES_AUTORIZADOS.items():
+                if nome_input in usuarios and usuarios[nome_input] == celular_input:
+                    st.session_state.logado = True
+                    st.session_state.usuario_nome = nome_input
+                    st.session_state.usuario_time = time_nome
+                    usuario_encontrado = True
+                    break
+            
+            if usuario_encontrado:
                 st.rerun()
             else:
-                st.error("Usuário não cadastrado neste time ou dados incorretos.")
+                st.error("Usuário não cadastrado ou dados incorretos.")
         st.markdown('</div>', unsafe_allow_html=True)
 
 if not st.session_state.logado:
