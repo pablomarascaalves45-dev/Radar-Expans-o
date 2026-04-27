@@ -9,21 +9,33 @@ import os
 # 1. Configuração da página
 st.set_page_config(page_title="Radar de Expansão", layout="centered")
 
-# --- SISTEMA DE LOGIN ---
-USUARIOS_AUTORIZADOS = {
-    "Pablo": "55997260245",
-    "Lucas": "257030",
-    "Eduardo": "5499865084",
-    "Eduardo Pedroso": "1702",
-    "Estevam": "5496964416",    
-    "Laércio": "5492130467",
-    "Rocha": "4491332648",
-    "Gabriel": "5497114483",
-    "Juliano": "5481345155",
-    "Laerti": "5492371861",
-    "Luan": "5496001432",
-    "Naudal": "5181285090",
-    "Gabriel": "54997114483",
+# --- SISTEMA DE LOGIN POR TIMES ---
+TIMES_AUTORIZADOS = {
+    "Expansão": {
+        "Pablo": "55997260245",
+        "Lucas": "257030",
+        "Eduardo": "5499865084",
+        "Eduardo Pedroso": "1702",
+        "Estevam": "5496964416",    
+        "Laércio": "5492130467",
+        "Rocha": "4491332648",
+    },
+    "Time Cintia": {
+        "Juliano": "5481345155",
+        "Gabriel": "54997114483",
+        "Luan": "5496001432",
+    },
+    "Time Laerti": {
+        "Laerti": "5492371861",
+        "Naudal": "5181285090",
+    }
+}
+
+# --- DADOS DA CURVA DE CRESCIMENTO (CONFORME PLANILHA) ---
+data_curva = {
+    "RS": [0.0, 0.0079, 0.0163, 0.026, 0.0264, -0.0112, 0.0366, 0.0048, 0.0503, -0.0111, 0.0362, 0.0411, 0.0076, -0.0021, 0.0056, -0.0042, 0.0159, 0.0315, 0.0039, 0.0019, 0.0016, 0.0032, 0.0055, 0.0013, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    "SC": [0.0, -0.0038, 0.0365, 0.0035, 0.0444, 0.0042, 0.0228, 0.0118, 0.0057, 0.0037, 0.0207, 0.0752, 0.0458, -0.0242, -0.0009, -0.0186, 0.0381, 0.0416, 0.0083, 0.0163, 0.0169, 0.0113, 0.0097, 0.0135, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    "PR": [0.0, 0.0389, 0.0589, 0.0281, 0.0373, 0.0203, 0.0292, 0.0028, 0.0246, 0.0014, 0.0389, 0.0204, -0.0114, 0.0062, 0.0491, -0.0009, 0.0427, 0.0286, 0.0246, 0.0308, 0.0199, 0.0125, 0.0099, 0.0028, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 }
 
 if 'logado' not in st.session_state:
@@ -48,12 +60,19 @@ def tela_login():
         st.subheader("Radar de Expansão")
         
         nome_input = st.text_input("Nome Completo")
-        celular_input = st.text_input("Número de Celular (com DDD)", placeholder="Ex: 519XXXXXXXX")
+        celular_input = st.text_input("Número de Celular (com DDD)", placeholder="Ex: 519XXXXXXXX", type="password")
         
         if st.button("ENTRAR"):
-            if nome_input in USUARIOS_AUTORIZADOS and USUARIOS_AUTORIZADOS[nome_input] == celular_input:
-                st.session_state.logado = True
-                st.session_state.usuario_nome = nome_input
+            acesso_concedido = False
+            for time, membros in TIMES_AUTORIZADOS.items():
+                if nome_input in membros and membros[nome_input] == celular_input:
+                    st.session_state.logado = True
+                    st.session_state.usuario_nome = nome_input
+                    st.session_state.usuario_time = time
+                    acesso_concedido = True
+                    break
+            
+            if acesso_concedido:
                 st.rerun()
             else:
                 st.error("Usuário não cadastrado ou dados incorretos.")
@@ -64,6 +83,7 @@ if not st.session_state.logado:
 else:
     # Barra Lateral
     st.sidebar.write(f"👤 Usuário: **{st.session_state.usuario_nome}**")
+    st.sidebar.write(f"🚩 Time: **{st.session_state.usuario_time}**")
     if st.sidebar.button("Sair"):
         st.session_state.logado = False
         st.rerun()
@@ -100,23 +120,19 @@ else:
         pdf.add_page()
         pdf.set_margins(10, 10, 10)
         
-        # Função interna para limpar caracteres que o FPDF (latin-1) não suporta
         def clean(txt):
             if txt is None: return ""
             t = str(txt).replace('\u2013', '-').replace('\u2014', '-').replace('\u2022', '*')
             return t.encode('windows-1252', 'replace').decode('windows-1252')
 
-        # Cabeçalho
         pdf.set_font("Arial", "B", 12)
         pdf.cell(0, 6, txt=clean("Relatorio de Expansao - Analise de Ponto"), ln=True, align='C')
         
-        # Barra de Aderência
         pdf.set_fill_color(30, 33, 48)
         pdf.set_text_color(255, 255, 255)
         pdf.set_font("Arial", "B", 10)
         pdf.cell(0, 8, txt=clean(f"ADERENCIA TOTAL: {perc_final}"), ln=True, align='C', fill=True)
         
-        # Sub-barra de scores
         pdf.set_fill_color(240, 240, 240)
         pdf.set_text_color(50, 50, 50)
         pdf.cell(0, 6, txt=clean(f"Mercado da Cidade: {p_merc_txt}  |  Dados do Ponto: {p_ponto_txt}"), ln=True, align='C', fill=True)
@@ -124,7 +140,6 @@ else:
         pdf.set_text_color(0, 0, 0)
         pdf.ln(4)
 
-        # 1. DADOS DO MERCADO
         pdf.set_font("Arial", "B", 10)
         pdf.cell(0, 5, txt=clean("1. DADOS DO MERCADO"), ln=True)
         pdf.set_font("Arial", "", 9)
@@ -140,22 +155,17 @@ else:
         pdf.cell(col_w, 5, txt=clean(f"Lojas Cabem: {formatar_br(dados_cidade.get('Lojas Cabem', 0), 0)}"), ln=1)
         
         pdf.ln(4)
-
-        # 2. LOCALIZACAO
         pdf.set_font("Arial", "B", 10)
         pdf.cell(0, 5, txt=clean("2. LOCALIZACAO"), ln=True)
         pdf.set_font("Arial", "", 8)
         pdf.multi_cell(0, 4, txt=clean(f"Endereco: {endereco}"))
         
         pdf.ln(4)
-
-        # 3. ANALISE TECNICA DO PONTO
         pdf.set_font("Arial", "B", 10)
         pdf.cell(0, 5, txt=clean("3. ANALISE TECNICA DO PONTO"), ln=True)
         pdf.ln(2)
         
         y_topo_tecnico = pdf.get_y()
-
         pdf.set_font("Arial", "B", 8)
         pdf.cell(60, 5, txt=clean("FLUXOS E CONCORRENCIA"), ln=True)
         pdf.set_font("Arial", "", 8)
@@ -336,7 +346,6 @@ else:
 
             observacoes = st.text_area("📝 Observações da Vistoria:", height=80)
 
-            # Cálculo de Score Base
             score_ponto_calc = peso_fluxo_pessoas[f_pess] + peso_padrao[f_veic] + peso_renda[c_rend] + peso_padrao[c_popu]
             score_ponto_calc += peso_concorrencia[conc_redes] + peso_concorrencia[conc_indep] + peso_canibalizacao[conc_canib]
             score_ponto_calc += (5 if polo_super else 0) + (4 if polo_pada else 0) + (3 if polo_hosp else 0)
