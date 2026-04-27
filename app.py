@@ -31,13 +31,6 @@ TIMES_AUTORIZADOS = {
     }
 }
 
-# --- DADOS DA CURVA DE CRESCIMENTO (CONFORME PLANILHA) ---
-data_curva = {
-    "RS": [0.0, 0.0079, 0.0163, 0.026, 0.0264, -0.0112, 0.0366, 0.0048, 0.0503, -0.0111, 0.0362, 0.0411, 0.0076, -0.0021, 0.0056, -0.0042, 0.0159, 0.0315, 0.0039, 0.0019, 0.0016, 0.0032, 0.0055, 0.0013, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-    "SC": [0.0, -0.0038, 0.0365, 0.0035, 0.0444, 0.0042, 0.0228, 0.0118, 0.0057, 0.0037, 0.0207, 0.0752, 0.0458, -0.0242, -0.0009, -0.0186, 0.0381, 0.0416, 0.0083, 0.0163, 0.0169, 0.0113, 0.0097, 0.0135, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-    "PR": [0.0, 0.0389, 0.0589, 0.0281, 0.0373, 0.0203, 0.0292, 0.0028, 0.0246, 0.0014, 0.0389, 0.0204, -0.0114, 0.0062, 0.0491, -0.0009, 0.0427, 0.0286, 0.0246, 0.0308, 0.0199, 0.0125, 0.0099, 0.0028, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-}
-
 if 'logado' not in st.session_state:
     st.session_state.logado = False
 
@@ -59,31 +52,29 @@ def tela_login():
         st.title("🔐 Acesso Restrito")
         st.subheader("Radar de Expansão")
         
+        # Seleção de Time
+        time_selecionado = st.selectbox("Selecione seu Time", options=list(TIMES_AUTORIZADOS.keys()))
+        
         nome_input = st.text_input("Nome Completo")
-        celular_input = st.text_input("Número de Celular (com DDD)", placeholder="Ex: 519XXXXXXXX", type="password")
+        celular_input = st.text_input("Número de Celular (com DDD)", placeholder="Ex: 519XXXXXXXX")
         
         if st.button("ENTRAR"):
-            acesso_concedido = False
-            for time, membros in TIMES_AUTORIZADOS.items():
-                if nome_input in membros and membros[nome_input] == celular_input:
-                    st.session_state.logado = True
-                    st.session_state.usuario_nome = nome_input
-                    st.session_state.usuario_time = time
-                    acesso_concedido = True
-                    break
-            
-            if acesso_concedido:
+            usuarios_do_time = TIMES_AUTORIZADOS[time_selecionado]
+            if nome_input in usuarios_do_time and usuarios_do_time[nome_input] == celular_input:
+                st.session_state.logado = True
+                st.session_state.usuario_nome = nome_input
+                st.session_state.usuario_time = time_selecionado
                 st.rerun()
             else:
-                st.error("Usuário não cadastrado ou dados incorretos.")
+                st.error("Usuário não cadastrado neste time ou dados incorretos.")
         st.markdown('</div>', unsafe_allow_html=True)
 
 if not st.session_state.logado:
     tela_login()
 else:
     # Barra Lateral
+    st.sidebar.write(f"👥 Time: **{st.session_state.usuario_time}**")
     st.sidebar.write(f"👤 Usuário: **{st.session_state.usuario_nome}**")
-    st.sidebar.write(f"🚩 Time: **{st.session_state.usuario_time}**")
     if st.sidebar.button("Sair"):
         st.session_state.logado = False
         st.rerun()
@@ -155,12 +146,14 @@ else:
         pdf.cell(col_w, 5, txt=clean(f"Lojas Cabem: {formatar_br(dados_cidade.get('Lojas Cabem', 0), 0)}"), ln=1)
         
         pdf.ln(4)
+
         pdf.set_font("Arial", "B", 10)
         pdf.cell(0, 5, txt=clean("2. LOCALIZACAO"), ln=True)
         pdf.set_font("Arial", "", 8)
         pdf.multi_cell(0, 4, txt=clean(f"Endereco: {endereco}"))
         
         pdf.ln(4)
+
         pdf.set_font("Arial", "B", 10)
         pdf.cell(0, 5, txt=clean("3. ANALISE TECNICA DO PONTO"), ln=True)
         pdf.ln(2)
