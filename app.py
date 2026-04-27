@@ -33,6 +33,7 @@ TIMES_AUTORIZADOS = {
     },
     "Time Laerti": {
         "Laerti": "5492371861",
+        "": "5492371861",
         
     }
 }
