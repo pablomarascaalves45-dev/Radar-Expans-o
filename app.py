@@ -38,7 +38,9 @@ TIMES_AUTORIZADOS = {
         "Luiz Kuhn": "5492086338",
         "Fabio Baldasso": "5491454817",
         "Cleiton de Lima": "5492092524",
-        
+       }, 
+        "Brair Imóveis": {
+        "Ricardo": "5499367651",
     }
 }
 
