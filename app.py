@@ -41,6 +41,7 @@ TIMES_AUTORIZADOS = {
        }, 
         "Brair Imóveis": {
         "Ricardo": "5499367651",
+        "Lucas Schwingel": "5499096535",    
     }
 }
 
