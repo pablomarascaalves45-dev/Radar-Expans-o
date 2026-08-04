@@ -38,8 +38,8 @@ TIMES_AUTORIZADOS = {
         "Luiz Kuhn": "5492086338",
         "Fabio Baldasso": "5491454817",
         "Cleiton de Lima": "5492092524",
-       }, 
-        "Brair Imóveis": {
+    }, 
+    "Brair Imóveis": {
         "Ricardo": "5499367651",
         "Lucas Schwingel": "5499096535",    
     }
@@ -135,6 +135,14 @@ else:
 
         pdf.set_font("Arial", "B", 12)
         pdf.cell(0, 6, txt=clean("Relatorio de Expansao - Analise de Ponto"), ln=True, align='C')
+        
+        # --- INFORMAÇÕES DE USUÁRIO E TIME ADICIONADAS AQUI ---
+        usuario_logado = st.session_state.get('usuario_nome', 'N/A')
+        time_logado = st.session_state.get('usuario_time', 'N/A')
+        pdf.set_font("Arial", "", 8)
+        pdf.cell(0, 4, txt=clean(f"Avaliador: {usuario_logado} | Equipe: {time_logado}"), ln=True, align='C')
+        pdf.ln(2)
+        # ---------------------------------------------------
         
         pdf.set_fill_color(30, 33, 48)
         pdf.set_text_color(255, 255, 255)
